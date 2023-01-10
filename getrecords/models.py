@@ -15,11 +15,17 @@ class MapTotalPlayers(models.Model):
     def __str__(self):
         return f"{self.uid} / nb:{self.nb_players}"
 
-
-
 class AuthToken(models.Model):
     token_for: str = models.CharField(max_length=64, db_index=True, unique=True)
     access_token: str = models.CharField(max_length=1024)
     refresh_token: str = models.CharField(max_length=1024)
     refresh_after: int = models.IntegerField()
     expiry_ts: int = models.IntegerField()
+
+
+class KnownOpenplanetToken(models.Model):
+    hashed: str = models.CharField(max_length=64, db_index=True, unique=True)
+    account_id: str = models.CharField(max_length=64, db_index=True, unique=True)
+    display_name: str = models.CharField(max_length=64, db_index=True)
+    token_time: int = models.IntegerField()
+    expire_at: int = models.IntegerField()

@@ -91,7 +91,7 @@ def all_tokens() -> list[NadeoToken | None]:
     return [NadeoLiveToken]
 
 
-async def reacquire_all_tokens():
+async def reacquire_all_tokens(force=False):
     global NadeoCoreToken, NadeoLiveToken
 
     # NadeoCoreToken = await get_token_for_audience(ubi, 'NadeoServices')

@@ -1,12 +1,15 @@
 import asyncio
 from datetime import timedelta
+import json
 import time
 from typing import Coroutine
 from django.shortcuts import render, get_object_or_404
-from django.http import JsonResponse, HttpResponseNotAllowed
+from django.http import JsonResponse, HttpResponseNotAllowed, HttpRequest, HttpResponseForbidden
 from django.core import serializers
 from django.db.models import Model
 from django.utils import timezone
+
+from getrecords.openplanet import check_token
 
 from .models import MapTotalPlayers
 from .nadeoapi import nadeo_get_nb_players_for_map
@@ -15,6 +18,20 @@ from .nadeoapi import nadeo_get_nb_players_for_map
 def json_resp(m: Model):
     print(serializers.serialize('python', [m])[0]['fields'])
     return JsonResponse(serializers.serialize('python', [m])[0]['fields'])
+
+
+def requires_openplanet_auth(f):
+    def _inner(request: HttpRequest, *args, **kwargs):
+        auth = request.headers.get('Authorization', '')
+        if not auth.startswith('openplanet '):
+            return HttpResponseForbidden(json.dumps({'error': 'authorization required'}))
+        token = auth.replace('openplanet ', '')
+        tr = run_async(check_token(token))
+        if tr is None:
+            return HttpResponseForbidden(json.dumps({'error': 'token did not validate'}))
+        request.tr = tr
+        return f(request, *args, **kwargs)
+    return _inner
 
 
 # Create your views here.
@@ -27,7 +44,7 @@ def get_nb_players(request, map_uid):
     mtp = get_object_or_404(MapTotalPlayers, uid=map_uid)
     return json_resp(mtp)
 
-
+@requires_openplanet_auth
 def refresh_nb_players(request, map_uid):
     if request.method != "GET": return HttpResponseNotAllowed(['GET'])
     mtps = MapTotalPlayers.objects.filter(uid=map_uid)
