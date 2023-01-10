@@ -5,14 +5,14 @@ import time
 from aiohttp import BasicAuth
 
 import jwt
-# from cgf.consts import LOCAL_DEV_MODE, SHUTDOWN
+from mapmonitor.settings import DEBUG
 
 from .utils import read_config_file
 from .http import get_session
 from .models import AuthToken
 
 
-LOCAL_DEV_MODE = True
+LOCAL_DEV_MODE = DEBUG
 
 
 # ubi_account_info = read_config_file('.ubisoft-acct', ['email', 'password'])

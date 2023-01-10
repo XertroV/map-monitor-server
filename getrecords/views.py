@@ -16,7 +16,6 @@ from .nadeoapi import nadeo_get_nb_players_for_map
 
 
 def json_resp(m: Model):
-    print(serializers.serialize('python', [m])[0]['fields'])
     return JsonResponse(serializers.serialize('python', [m])[0]['fields'])
 
 
@@ -56,8 +55,8 @@ def refresh_nb_players(request, map_uid):
         delta = time.time() - mtp.updated_ts
         in_prog = mtp.last_update_started_ts > mtp.updated_ts and (time.time() - mtp.last_update_started_ts < 60)
         # if it's been less than 15 minutes, or an update is in prog, return cached
-        # if in_prog or delta < (15 * 60):
-        #     return json_resp(mtp)
+        if in_prog or delta < (15 * 60):
+            return json_resp(mtp)
     else:
         mtp = MapTotalPlayers(uid=map_uid)
     mtp.last_update_started_ts = time.time()
