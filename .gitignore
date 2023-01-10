@@ -1,0 +1,9 @@
+venv
+*.pyc
+staticfiles
+.env
+db.sqlite3
+getting-started/*
+.dedi-server-acct
+python-getting-started
+.openplanet-auth
