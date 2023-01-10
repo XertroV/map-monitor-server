@@ -45,11 +45,14 @@ def read_config_file(file: str, keys: list[str]):
         ret[k] = v
     return ret
 
+def environ_replacement_name(file, key):
+    return f"{file}_{key}".upper().replace('-','_')
+
 def check_environ_for_config(file: str, keys: list[str]):
-    return all(f"{file}_{key}" in os.environ for key in keys)
+    return all(environ_replacement_name(file, key) in os.environ for key in keys)
 
 def read_config_environ(file: str, keys: list[str]):
     ret = dict()
     for key in keys:
-        ret[key] = os.environ.get(f"{file}_{key}")
+        ret[key] = os.environ.get(environ_replacement_name(file, key))
     return ret
