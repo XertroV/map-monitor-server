@@ -11,7 +11,7 @@
       "generator": "secret"
     }
   },
-  "environments": {
+  "environments--": {
     "test": {
       "scripts": {
         "test-setup": "python manage.py collectstatic --noinput",
