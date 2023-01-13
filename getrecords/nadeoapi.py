@@ -98,8 +98,8 @@ async def reacquire_all_tokens(force=False):
     # logging.warn(f"Got core token: {NadeoCoreToken is not None}")
     # if LOCAL_DEV_MODE:
     #     logging.warn(f"Got core token: {NadeoCoreToken.accessToken}")
-    existing = await AuthToken.objects.filter(token_for="NadeoLiveServices", expiry_ts__gt=int(time.time() + 10)).afirst()
     tmpNadeoToken = None
+    existing = await AuthToken.objects.filter(token_for="NadeoLiveServices", expiry_ts__gt=int(time.time() + 10)).afirst()
     if existing is not None:
         t = existing
         tmpNadeoToken = NadeoToken(accessToken=t.access_token, refreshToken=t.refresh_token)
@@ -112,10 +112,10 @@ async def reacquire_all_tokens(force=False):
             defaults=dict(access_token=NadeoLiveToken.accessToken, refresh_token=NadeoLiveToken.refreshToken,
                           expiry_ts=NadeoLiveToken.accessTokenJson.get('exp'), refresh_after=NadeoLiveToken.accessTokenJson.get('rat'))
         )
-        if LOCAL_DEV_MODE:
-            logging.warn(f"Got live token: {NadeoLiveToken.accessToken}")
     else:
         NadeoLiveToken = tmpNadeoToken
+    if LOCAL_DEV_MODE:
+        logging.warn(f"Got live token: {NadeoLiveToken.accessToken}")
 
 
 def check_refresh_after(t: NadeoToken) -> bool:
