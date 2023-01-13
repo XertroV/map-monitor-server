@@ -98,7 +98,7 @@ async def reacquire_all_tokens(force=False):
     # logging.warn(f"Got core token: {NadeoCoreToken is not None}")
     # if LOCAL_DEV_MODE:
     #     logging.warn(f"Got core token: {NadeoCoreToken.accessToken}")
-    existing = await AuthToken.objects.filter(token_for="NadeoLiveServices").afirst()
+    existing = await AuthToken.objects.filter(token_for="NadeoLiveServices", expiry_ts__gt=int(time.time() + 10)).afirst()
     tmpNadeoToken = None
     if existing is not None:
         t = existing
