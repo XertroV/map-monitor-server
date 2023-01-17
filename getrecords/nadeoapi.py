@@ -104,7 +104,7 @@ async def reacquire_all_tokens(force=False):
         t = existing
         tmpNadeoToken = NadeoToken(accessToken=t.access_token, refreshToken=t.refresh_token)
 
-    if check_refresh_after(tmpNadeoToken):
+    if force or check_refresh_after(tmpNadeoToken):
         NadeoLiveToken = await get_token_for_audience('NadeoLiveServices')
         logging.warn(f"Got live token: {NadeoLiveToken is not None}")
         await AuthToken.objects.aupdate_or_create(
@@ -173,13 +173,16 @@ async def get_totd_maps():
 
 MAP_SCORE_AROUND = "https://live-services.trackmania.nadeo.live/api/token/leaderboard/group/Personal_Best/map/{mapUid}/surround/1/1?onlyWorld=true&score={score}"
 
-async def get_map_scores_around(mapUid: str, score: int):
+async def get_map_scores_around(mapUid: str, score: int, retry_fix_401=True):
     await await_nadeo_services_initialized()
     async with get_live_session() as session:
         async with await session.get(MAP_SCORE_AROUND.format(mapUid=mapUid, score=score)) as resp:
             if resp.status == 200:
                 return await resp.json()
             logging.warn(f"get_map_scores_around status: {resp.status}, {await resp.text()}")
+            if (retry_fix_401 and resp.status == 401):
+                reacquire_all_tokens(True)
+                return get_map_scores_around(mapUid, score, retry_fix_401 = False)
             return None
 
 async def nadeo_get_nb_players_for_map(map_uid: str):
