@@ -181,8 +181,8 @@ async def get_map_scores_around(mapUid: str, score: int, retry_fix_401=True):
                 return await resp.json()
             logging.warn(f"get_map_scores_around status: {resp.status}, {await resp.text()}")
             if (retry_fix_401 and resp.status == 401):
-                reacquire_all_tokens(True)
-                return get_map_scores_around(mapUid, score, retry_fix_401 = False)
+                await reacquire_all_tokens(True)
+                return await get_map_scores_around(mapUid, score, retry_fix_401 = False)
             return None
 
 async def nadeo_get_nb_players_for_map(map_uid: str):
