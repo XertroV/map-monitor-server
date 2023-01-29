@@ -186,13 +186,11 @@ async def get_map_scores_around(mapUid: str, score: int, retry_fix_401=True):
             return None
 
 async def nadeo_get_nb_players_for_map(map_uid: str):
-    resp = await get_map_scores_around(map_uid, 1000 * 86400 * 21)
+    a_long_time = 1000 * 86400 * 21
+    a_long_time += int(time.time()) % a_long_time
+    resp = await get_map_scores_around(map_uid, a_long_time)
     print(resp)
     return resp
-
-
-
-
 
 
 MAP_INFO_BY_UID_URL = "https://prod.trackmania.core.nadeo.online/maps/?mapUidList="

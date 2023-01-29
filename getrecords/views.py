@@ -12,7 +12,7 @@ from django.utils import timezone
 from getrecords.openplanet import check_token
 
 from .models import MapTotalPlayers
-from .nadeoapi import nadeo_get_nb_players_for_map
+from .nadeoapi import LOCAL_DEV_MODE, nadeo_get_nb_players_for_map
 
 
 NB_PLAYERS_CACHE_SECONDS = 5 * 60
@@ -64,7 +64,7 @@ def refresh_nb_players(request, map_uid):
         delta = time.time() - mtp.updated_ts
         in_prog = mtp.last_update_started_ts > mtp.updated_ts and (time.time() - mtp.last_update_started_ts < 60)
         # if it's been less than 5 minutes, or an update is in prog, return cached
-        if in_prog or delta < NB_PLAYERS_CACHE_SECONDS:
+        if not LOCAL_DEV_MODE and (in_prog or delta < NB_PLAYERS_CACHE_SECONDS):
             return json_resp_mtp(mtp)
     else:
         mtp = MapTotalPlayers(uid=map_uid)
