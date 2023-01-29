@@ -15,8 +15,17 @@ from .models import MapTotalPlayers
 from .nadeoapi import nadeo_get_nb_players_for_map
 
 
+NB_PLAYERS_CACHE_SECONDS = 5 * 60
+
+
 def json_resp(m: Model):
     return JsonResponse(serializers.serialize('python', [m])[0]['fields'])
+
+def json_resp_mtp(m: MapTotalPlayers):
+    resp = serializers.serialize('python', [m])[0]['fields']
+    resp['refresh_in'] = NB_PLAYERS_CACHE_SECONDS - (time.time() - m.updated_ts)
+    # print(f"Response: {json.dumps(resp)}")
+    return JsonResponse(resp)
 
 
 def requires_openplanet_auth(f):
@@ -55,8 +64,8 @@ def refresh_nb_players(request, map_uid):
         delta = time.time() - mtp.updated_ts
         in_prog = mtp.last_update_started_ts > mtp.updated_ts and (time.time() - mtp.last_update_started_ts < 60)
         # if it's been less than 5 minutes, or an update is in prog, return cached
-        if in_prog or delta < (5 * 60):
-            return json_resp(mtp)
+        if in_prog or delta < NB_PLAYERS_CACHE_SECONDS:
+            return json_resp_mtp(mtp)
     else:
         mtp = MapTotalPlayers(uid=map_uid)
     mtp.last_update_started_ts = time.time()
@@ -71,7 +80,7 @@ def refresh_nb_players(request, map_uid):
         mtp.last_highest_score = last_player['score']
     mtp.updated_ts = time.time()
     mtp.save()
-    return json_resp(mtp)
+    return json_resp_mtp(mtp)
 
 
 def run_async(coro: Coroutine):
