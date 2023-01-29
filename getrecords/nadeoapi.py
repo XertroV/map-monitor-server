@@ -186,7 +186,7 @@ async def get_map_scores_around(mapUid: str, score: int, retry_fix_401=True):
             return None
 
 async def nadeo_get_nb_players_for_map(map_uid: str):
-    resp = await get_map_scores_around(map_uid, 1000 * 86400 * 14)
+    resp = await get_map_scores_around(map_uid, 1000 * 86400 * 21)
     print(resp)
     return resp
 

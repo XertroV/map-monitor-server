@@ -54,17 +54,21 @@ def refresh_nb_players(request, map_uid):
         last_known = mtp.nb_players
         delta = time.time() - mtp.updated_ts
         in_prog = mtp.last_update_started_ts > mtp.updated_ts and (time.time() - mtp.last_update_started_ts < 60)
-        # if it's been less than 15 minutes, or an update is in prog, return cached
-        if in_prog or delta < (1 * 15 * 60):
+        # if it's been less than 5 minutes, or an update is in prog, return cached
+        if in_prog or delta < (5 * 60):
             return json_resp(mtp)
     else:
         mtp = MapTotalPlayers(uid=map_uid)
     mtp.last_update_started_ts = time.time()
     mtp.save()
     records = run_async(nadeo_get_nb_players_for_map(map_uid))
-    last_player = records['tops'][0]['top'][0]
-    mtp.nb_players = last_player['position']
-    mtp.last_highest_score = last_player['score']
+    mtp.nb_players = 0
+    mtp.last_highest_score = 0
+    tops = records['tops'][0]['top']
+    if (len(tops) > 1):
+        last_player = tops[0]
+        mtp.nb_players = last_player['position']
+        mtp.last_highest_score = last_player['score']
     mtp.updated_ts = time.time()
     mtp.save()
     return json_resp(mtp)
