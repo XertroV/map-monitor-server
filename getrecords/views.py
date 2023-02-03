@@ -12,7 +12,7 @@ from django.utils import timezone
 from getrecords.openplanet import check_token
 
 from .models import MapTotalPlayers
-from .nadeoapi import LOCAL_DEV_MODE, nadeo_get_nb_players_for_map
+from .nadeoapi import LOCAL_DEV_MODE, nadeo_get_nb_players_for_map, nadeo_get_surround_for_map
 
 
 NB_PLAYERS_CACHE_SECONDS = 5 * 60
@@ -81,6 +81,12 @@ def refresh_nb_players(request, map_uid):
     mtp.updated_ts = time.time()
     mtp.save()
     return json_resp_mtp(mtp)
+
+
+def get_surround_score(request, map_uid, score):
+    if request.method != "GET": return HttpResponseNotAllowed(['GET'])
+    return JsonResponse(run_async(nadeo_get_surround_for_map(map_uid, score)))
+
 
 
 def run_async(coro: Coroutine):

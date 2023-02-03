@@ -189,7 +189,13 @@ async def nadeo_get_nb_players_for_map(map_uid: str):
     a_long_time = 1000 * 86400 * 21
     a_long_time += int(time.time()) % a_long_time
     resp = await get_map_scores_around(map_uid, a_long_time)
-    print(resp)
+    # print(resp)
+    return resp
+
+
+async def nadeo_get_surround_for_map(map_uid: str, score: int):
+    resp = await get_map_scores_around(map_uid, score)
+    # print(resp)
     return resp
 
 
