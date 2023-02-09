@@ -1,4 +1,5 @@
 
+import hashlib
 from pathlib import Path
 import time
 from typing import Iterable
@@ -56,3 +57,17 @@ def read_config_environ(file: str, keys: list[str]):
     for key in keys:
         ret[key] = os.environ.get(environ_replacement_name(file, key))
     return ret
+
+
+
+
+
+
+def sha_256(text: str) -> str:
+    return hashlib.sha256(text.encode("UTF8")).hexdigest()
+
+def sha_256_b(bs: bytes) -> str:
+    return hashlib.sha256(bs).hexdigest()
+
+def sha_256_b_ts(bs: bytes, ts: int) -> str:
+    return sha_256_b(hashlib.sha256(bs).digest() + str(ts).encode('UTF8'))

@@ -201,6 +201,15 @@ async def nadeo_get_surround_for_map(map_uid: str, score: int):
 
 MAP_INFO_BY_UID_URL = "https://prod.trackmania.core.nadeo.online/maps/?mapUidList="
 
+async def core_get_maps_by_uid(uids: list[str]):
+    url = MAP_INFO_BY_UID_URL + ",".join(uids)
+    async with get_core_session() as session:
+        async with await session.get(url) as resp:
+            if not resp.ok:
+                logging.warn(f"Error getting maps for uids: {uids}; {resp.status}, {await resp.content.read()}")
+                return
+            return await resp.json()
+
 ''' wait for up to 2 minutes for maps to be uploaded '''
 async def await_maps_uploaded(mapUids: list[str]):
     await await_nadeo_services_initialized()

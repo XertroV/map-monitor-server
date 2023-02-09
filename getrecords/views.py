@@ -2,20 +2,25 @@ import asyncio
 from datetime import timedelta
 import json
 import time
-from typing import Coroutine
+from typing import Coroutine, Optional
 from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse, HttpResponseNotAllowed, HttpRequest, HttpResponseForbidden, HttpResponse
 from django.core import serializers
 from django.db.models import Model
 from django.utils import timezone
 
-from getrecords.openplanet import check_token
+from getrecords.openplanet import ARCHIVIST_PLUGIN_ID, MAP_MONITOR_PLUGIN_ID, TokenResp, check_token, sha_256
+from getrecords.s3 import upload_ghost_to_s3
+from getrecords.utils import sha_256_b_ts
 
-from .models import MapTotalPlayers
+from .models import Ghost, MapTotalPlayers, Track, TrackStats, User, UserStats, UserTrackPlay
 from .nadeoapi import LOCAL_DEV_MODE, nadeo_get_nb_players_for_map, nadeo_get_surround_for_map
+import getrecords.nadeoapi as nadeoapi
 
-
+# 5 min
 NB_PLAYERS_CACHE_SECONDS = 5 * 60
+# 8 hrs
+NB_PLAYERS_MAX_CACHE_SECONDS = 8 * 60 * 60
 
 
 def json_resp(m: Model):
@@ -23,23 +28,35 @@ def json_resp(m: Model):
 
 def json_resp_mtp(m: MapTotalPlayers):
     resp = serializers.serialize('python', [m])[0]['fields']
-    resp['refresh_in'] = NB_PLAYERS_CACHE_SECONDS - (time.time() - m.updated_ts)
+    resp['refresh_in'] = NB_PLAYERS_CACHE_SECONDS # - (time.time() - m.updated_ts)
+    if (m.nb_players > 10000):
+        resp['refresh_in'] = NB_PLAYERS_MAX_CACHE_SECONDS
     # print(f"Response: {json.dumps(resp)}")
     return JsonResponse(resp)
 
 
-def requires_openplanet_auth(f):
-    def _inner(request: HttpRequest, *args, **kwargs):
-        auth = request.headers.get('Authorization', '')
-        if not auth.startswith('openplanet '):
-            return HttpResponseForbidden(json.dumps({'error': 'authorization required'}))
-        token = auth.replace('openplanet ', '')
-        tr = run_async(check_token(token))
-        if tr is None:
-            return HttpResponseForbidden(json.dumps({'error': 'token did not validate'}))
-        request.tr = tr
-        return f(request, *args, **kwargs)
-    return _inner
+def requires_openplanet_auth(plugin_id: int):
+    def requires_openplanet_auth_inner(f):
+        def _inner(request: HttpRequest, *args, **kwargs):
+            auth = request.headers.get('Authorization', '')
+            if not auth.startswith('openplanet '):
+                return HttpResponseForbidden(json.dumps({'error': 'authorization required'}))
+            token = auth.replace('openplanet ', '')
+            tr: Optional[TokenResp] = run_async(check_token(token, plugin_id))
+            if tr is None:
+                return HttpResponseForbidden(json.dumps({'error': 'token did not validate'}))
+            request.tr = tr
+            user = User.objects.filter(wsid=tr.account_id).first()
+            if user is None:
+                user = User(wsid=tr.account_id, display_name=tr.display_name)
+            else:
+                user.last_seen_ts = time.time()
+            if tr.display_name != user.display_name:
+                user.display_name = tr.display_name
+            user.save()
+            return f(request, *args, user=user, **kwargs)
+        return _inner
+    return requires_openplanet_auth_inner
 
 
 # Create your views here.
@@ -52,8 +69,8 @@ def get_nb_players(request, map_uid):
     mtp = get_object_or_404(MapTotalPlayers, uid=map_uid)
     return json_resp(mtp)
 
-# @requires_openplanet_auth
-def refresh_nb_players(request, map_uid):
+# @requires_openplanet_auth(MAP_MONITOR_PLUGIN_ID)
+def refresh_nb_players(request, map_uid, user=None):
     if request.method != "GET": return HttpResponseNotAllowed(['GET'])
     mtps = MapTotalPlayers.objects.filter(uid=map_uid)
     last_known = 0
@@ -88,14 +105,66 @@ def get_surround_score(request, map_uid, score):
     return JsonResponse(run_async(nadeo_get_surround_for_map(map_uid, score)))
 
 
-def ghost_upload(request: HttpRequest, map_uid: str, score: int):
-    print("GHOST UPLOAD: method, body")
-    print(request.method)
-    print(request.headers)
-    print(request.path)
-    print(len(request.body))
-    print('Partial: ' + request.GET.get('partial', 'False'))
-    return JsonResponse({'size': len(request.body)})
+
+def get_track_mb_create(uid: str) -> Track:
+    track = Track.objects.filter(uid=uid).first()
+    if track is None:
+        track = Track(uid=uid)
+        track_info = run_async(nadeoapi.core_get_maps_by_uid([uid]))
+        if len(track_info) > 0:
+            track_info: dict = track_info[0]
+            track.map_id = track_info.get('mapId', None)
+            track.name = track_info.get('name', None)
+            track.url = track_info.get('url', None)
+            track.thumbnail_url = track_info.get('thumbnailUrl', None)
+        track.save()
+    return track
+
+
+def increment_stats(user: User, track: Track, ghost: Ghost):
+    utp = UserTrackPlay.objects.filter(user=user, track=track).first()
+
+    track_stats = TrackStats.objects.filter(track=track).first()
+    if track_stats is None: track_stats = TrackStats(track=track)
+    track_stats.total_runs += 1
+    track_stats.partial_runs += 1 if ghost.partial else 0
+    if utp is None:
+        track_stats.unique_users += 1
+    track_stats.save()
+
+    user_stats = UserStats.objects.filter(user=user).first()
+    if user_stats is None: user_stats = UserStats(user=user)
+    user_stats.total_runs += 1
+    user_stats.partial_runs += 1 if ghost.partial else 0
+    if utp is None:
+        user_stats.unique_maps += 1
+    user_stats.save()
+
+
+@requires_openplanet_auth(ARCHIVIST_PLUGIN_ID)
+def ghost_upload(request: HttpRequest, map_uid: str, score: int, user: User):
+    now = int(time.time())
+    print(f"POST query params: {request.POST}")
+    partial = request.POST.get('partial', 'false').lower() == 'true'
+    ghost_data = request.body
+    track = get_track_mb_create(map_uid)
+    ghost_hash = sha_256_b_ts(ghost_data, now)
+    s3_url = upload_ghost_to_s3(ghost_hash, ghost_data)
+    ghost = Ghost(user=user, track=track, url=s3_url,
+                  timestamp=now, hash_hex=ghost_hash,
+                  partial=partial, duration=score)
+    ghost.save()
+    # do this before we make the UTP record so we can test if we need to increment the unique_* properties of TrackStats and UserStats
+    increment_stats(user, track, ghost, partial)
+    utp = UserTrackPlay(user=user, track=track, partial=partial, score=score, ghost=ghost, timestamp=now)
+    utp.save()
+    # print("GHOST UPLOAD: method, body")
+    # print(request.method)
+    # print(request.headers)
+    # print(request.path)
+    # print(len(request.body))
+    # print('Partial: ' + request.GET.get('partial', 'False'))
+    return JsonResponse({'url': s3_url})
 
 def run_async(coro: Coroutine):
     loop = asyncio.new_event_loop()

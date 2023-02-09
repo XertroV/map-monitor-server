@@ -10,9 +10,18 @@ import hashlib
 from getrecords.models import KnownOpenplanetToken
 
 from .http import get_session
-from .utils import read_config_file
+from .utils import read_config_file, sha_256
 
 op_config = read_config_file('.openplanet-auth', ['secret', 'url'])
+op_archivist_config = read_config_file('.op-auth-archivist', ['secret', 'url'])
+
+MAP_MONITOR_PLUGIN_ID = 308
+ARCHIVIST_PLUGIN_ID = 328
+
+plugin_site_id_to_op_config = {
+    328: op_archivist_config,
+    308: op_config,
+}
 
 @dataclass
 class TokenResp:
@@ -20,13 +29,17 @@ class TokenResp:
     display_name: str
     token_time: int
 
-async def check_token(token: str) -> Optional[TokenResp]:
+async def check_token(token: str, plugin_id: int) -> Optional[TokenResp]:
+    _config = plugin_site_id_to_op_config.get(plugin_id, None)
+    if _config is None:
+        logging.error(f"@Dev: Bad plugin_id: {plugin_id}")
+        return None
     cached = await get_token_cached_and_recent(token)
     if cached is not None:
         return cached
-    pl = dict(token=token, secret=op_config['secret'])
+    pl = dict(token=token, secret=_config['secret'])
     async with get_session() as session:
-        async with session.post(op_config['url'], data=pl) as resp:
+        async with session.post(_config['url'], data=pl) as resp:
             if (resp.status != 200):
                 logging.warn(f"Checking token failed, status: {resp.status}, body: {await resp.text()}")
                 return None
@@ -54,7 +67,3 @@ async def get_token_cached_and_recent(token):
     if known_token is None or known_token.expire_at < time.time():
         return
     return TokenResp(account_id=known_token.account_id, display_name=known_token.display_name, token_time=known_token.token_time)
-
-
-def sha_256(text: str) -> str:
-    return hashlib.sha256(text.encode("UTF8")).hexdigest()
