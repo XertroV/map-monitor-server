@@ -88,34 +88,56 @@ async def await_nadeo_services_initialized():
 
 
 def all_tokens() -> list[NadeoToken | None]:
-    return [NadeoLiveToken]
+    return [NadeoLiveToken, NadeoCoreToken]
 
 
-async def reacquire_all_tokens(force=False):
-    global NadeoCoreToken, NadeoLiveToken
-
-    # NadeoCoreToken = await get_token_for_audience(ubi, 'NadeoServices')
-    # logging.warn(f"Got core token: {NadeoCoreToken is not None}")
-    # if LOCAL_DEV_MODE:
-    #     logging.warn(f"Got core token: {NadeoCoreToken.accessToken}")
+async def reacquire_token(for_name: str, force=False) -> NadeoToken:
     tmpNadeoToken = None
-    existing = await AuthToken.objects.filter(token_for="NadeoLiveServices", expiry_ts__gt=int(time.time() + 10)).afirst()
+    existing = await AuthToken.objects.filter(token_for=for_name, expiry_ts__gt=int(time.time() + 10)).afirst()
     if existing is not None:
         t = existing
         tmpNadeoToken = NadeoToken(accessToken=t.access_token, refreshToken=t.refresh_token)
 
     if force or check_refresh_after(tmpNadeoToken):
-        NadeoLiveToken = await get_token_for_audience('NadeoLiveServices')
-        logging.warn(f"Got live token: {NadeoLiveToken is not None}")
+        tmpNadeoToken = await get_token_for_audience(for_name)
+        logging.warn(f"Got live token: {tmpNadeoToken is not None}")
         await AuthToken.objects.aupdate_or_create(
-            token_for='NadeoLiveServices',
-            defaults=dict(access_token=NadeoLiveToken.accessToken, refresh_token=NadeoLiveToken.refreshToken,
-                          expiry_ts=NadeoLiveToken.accessTokenJson.get('exp'), refresh_after=NadeoLiveToken.accessTokenJson.get('rat'))
+            token_for=for_name,
+            defaults=dict(access_token=tmpNadeoToken.accessToken, refresh_token=tmpNadeoToken.refreshToken,
+                          expiry_ts=tmpNadeoToken.accessTokenJson.get('exp'), refresh_after=tmpNadeoToken.accessTokenJson.get('rat'))
         )
-    else:
-        NadeoLiveToken = tmpNadeoToken
-    if LOCAL_DEV_MODE:
-        logging.warn(f"Got live token: {NadeoLiveToken.accessToken}")
+    return tmpNadeoToken
+
+
+
+async def reacquire_all_tokens(force=False):
+    global NadeoCoreToken, NadeoLiveToken
+
+    NadeoCoreToken = await reacquire_token('NadeoServices')
+    NadeoLiveToken = await reacquire_token('NadeoLiveServices')
+
+    # # NadeoCoreToken = await get_token_for_audience(ubi, 'NadeoServices')
+    # # logging.warn(f"Got core token: {NadeoCoreToken is not None}")
+    # # if LOCAL_DEV_MODE:
+    # #     logging.warn(f"Got core token: {NadeoCoreToken.accessToken}")
+    # tmpNadeoToken = None
+    # existing = await AuthToken.objects.filter(token_for="NadeoLiveServices", expiry_ts__gt=int(time.time() + 10)).afirst()
+    # if existing is not None:
+    #     t = existing
+    #     tmpNadeoToken = NadeoToken(accessToken=t.access_token, refreshToken=t.refresh_token)
+
+    # if force or check_refresh_after(tmpNadeoToken):
+    #     NadeoLiveToken = await get_token_for_audience('NadeoLiveServices')
+    #     logging.warn(f"Got live token: {NadeoLiveToken is not None}")
+    #     await AuthToken.objects.aupdate_or_create(
+    #         token_for='NadeoLiveServices',
+    #         defaults=dict(access_token=NadeoLiveToken.accessToken, refresh_token=NadeoLiveToken.refreshToken,
+    #                       expiry_ts=NadeoLiveToken.accessTokenJson.get('exp'), refresh_after=NadeoLiveToken.accessTokenJson.get('rat'))
+    #     )
+    # else:
+    #     NadeoLiveToken = tmpNadeoToken
+    # if LOCAL_DEV_MODE:
+    #     logging.warn(f"Got live token: {NadeoLiveToken.accessToken}")
 
 
 def check_refresh_after(t: NadeoToken) -> bool:
@@ -141,8 +163,8 @@ async def run_nadeo_services_auth():
 
 
 def get_token_for(audience):
-    # if audience == "NadeoServices" and NadeoCoreToken is not None:
-    #     return NadeoCoreToken.accessToken
+    if audience == "NadeoServices" and NadeoCoreToken is not None:
+        return NadeoCoreToken.accessToken
     if audience == "NadeoLiveServices" and NadeoLiveToken is not None:
         return NadeoLiveToken.accessToken
     raise Exception(f'cannot get token for audience: {audience}')
@@ -202,10 +224,12 @@ async def nadeo_get_surround_for_map(map_uid: str, score: int):
 MAP_INFO_BY_UID_URL = "https://prod.trackmania.core.nadeo.online/maps/?mapUidList="
 
 async def core_get_maps_by_uid(uids: list[str]):
+    await await_nadeo_services_initialized()
     url = MAP_INFO_BY_UID_URL + ",".join(uids)
     async with get_core_session() as session:
         async with await session.get(url) as resp:
             if not resp.ok:
+                print(f"Error getting maps for uids: {uids}; {resp.status}, {await resp.content.read()}")
                 logging.warn(f"Error getting maps for uids: {uids}; {resp.status}, {await resp.content.read()}")
                 return
             return await resp.json()

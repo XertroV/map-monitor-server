@@ -42,11 +42,12 @@ class User(models.Model):
 
 class Track(models.Model):
     uid: str = models.CharField(max_length=36, unique=True, db_index=True)
-    map_id: str = models.CharField(max_length=48, unique=True, db_index=True)
-    name: str = models.TextField(max_length=256)
-    url: str = models.TextField(max_length=256)
-    thumbnail_url: str = models.TextField(max_length=256)
+    map_id: str = models.CharField(max_length=48, db_index=True, null=True)
+    name: str = models.TextField(max_length=256, null=True)
+    url: str = models.TextField(max_length=256, null=True)
+    thumbnail_url: str = models.TextField(max_length=256, null=True)
     tmx_track_id: int = models.IntegerField(default=-123)
+    last_updated_ts: int = models.IntegerField(default=time.time)
 
 class Ghost(models.Model):
     user = models.ForeignKey(User, on_delete=models.DO_NOTHING, db_index=True)
@@ -56,6 +57,7 @@ class Ghost(models.Model):
     hash_hex: str = models.CharField(max_length=64)
     partial = models.BooleanField()
     duration = models.IntegerField()
+    size_bytes = models.IntegerField(default=-1)
     class Meta:
         index_together = [
             ('user', 'track'),
