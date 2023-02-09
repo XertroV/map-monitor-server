@@ -4,7 +4,7 @@ import json
 import time
 from typing import Coroutine
 from django.shortcuts import render, get_object_or_404
-from django.http import JsonResponse, HttpResponseNotAllowed, HttpRequest, HttpResponseForbidden
+from django.http import JsonResponse, HttpResponseNotAllowed, HttpRequest, HttpResponseForbidden, HttpResponse
 from django.core import serializers
 from django.db.models import Model
 from django.utils import timezone
@@ -88,6 +88,14 @@ def get_surround_score(request, map_uid, score):
     return JsonResponse(run_async(nadeo_get_surround_for_map(map_uid, score)))
 
 
+def ghost_upload(request: HttpRequest, map_uid: str, score: int):
+    print("GHOST UPLOAD: method, body")
+    print(request.method)
+    print(request.headers)
+    print(request.path)
+    print(len(request.body))
+    print('Partial: ' + request.GET.get('partial', 'False'))
+    return JsonResponse({'size': len(request.body)})
 
 def run_async(coro: Coroutine):
     loop = asyncio.new_event_loop()

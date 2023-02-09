@@ -7,3 +7,5 @@ getting-started/*
 .dedi-server-acct
 python-getting-started
 .openplanet-auth
+.s3
+.op-auth-archivist

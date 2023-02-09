@@ -1,0 +1,4 @@
+access-key=ACCESS_KEY
+secret-key=SECRET_KEY
+service-url=s3.nl-1.wasabisys.com
+bucket-name=cgf
