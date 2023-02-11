@@ -15,6 +15,9 @@ from pathlib import Path
 
 import environ
 import dj_database_url
+import logging
+
+logging.basicConfig(level=logging.INFO)
 
 env = environ.Env()
 # reading .env file
@@ -42,6 +45,7 @@ SECURE_HSTS_SECONDS = 0
 
 INSTALLED_APPS = [
     'getrecords.apps.GetrecordsConfig',
+    'mapalitics.apps.MapaliticsConfig',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',

@@ -51,6 +51,7 @@ async def check_token(token: str, plugin_id: int) -> Optional[TokenResp]:
 
 async def save_token_from_json(token, plugin_id: int, resp_j):
     tr = TokenResp(**resp_j)
+    logging.info(f"Saving new token for: {tr.display_name}")
     await KnownOpenplanetToken.objects.aupdate_or_create(account_id=tr.account_id, plugin_site_id=plugin_id,
         defaults=dict(
             display_name=tr.display_name,

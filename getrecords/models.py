@@ -90,17 +90,11 @@ class TrackStats(models.Model):
     total_runs: int = models.IntegerField(default=0, db_index=True)
     partial_runs: int = models.IntegerField(default=0, db_index=True)
     unique_users: int = models.IntegerField(default=0, db_index=True)
+    total_time: int = models.IntegerField(default=0, db_index=True)
 
 class UserStats(models.Model):
     user = models.ForeignKey(User, on_delete=models.DO_NOTHING, db_index=True)
     total_runs: int = models.IntegerField(default=0, db_index=True)
     partial_runs: int = models.IntegerField(default=0, db_index=True)
     unique_maps: int = models.IntegerField(default=0, db_index=True)
-
-
-
-'''
-
-
-
-'''
+    total_time: int = models.IntegerField(default=0, db_index=True)

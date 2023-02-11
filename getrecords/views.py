@@ -9,6 +9,7 @@ from django.http import JsonResponse, HttpResponseNotAllowed, HttpRequest, HttpR
 from django.core import serializers
 from django.db.models import Model
 from django.utils import timezone
+from django.db import transaction
 
 from getrecords.openplanet import ARCHIVIST_PLUGIN_ID, MAP_MONITOR_PLUGIN_ID, TokenResp, check_token, sha_256
 from getrecords.s3 import upload_ghost_to_s3
@@ -138,21 +139,25 @@ def get_track_mb_create(uid: str) -> Track:
 def increment_stats(user: User, track: Track, ghost: Ghost):
     utp = UserTrackPlay.objects.filter(user=user, track=track).first()
 
-    track_stats = TrackStats.objects.filter(track=track).first()
-    if track_stats is None: track_stats = TrackStats(track=track)
-    track_stats.total_runs += 1
-    track_stats.partial_runs += 1 if ghost.partial else 0
-    if utp is None:
-        track_stats.unique_users += 1
-    track_stats.save()
+    with transaction.atomic():
+        track_stats = TrackStats.objects.filter(track=track).first()
+        if track_stats is None: track_stats = TrackStats(track=track)
+        track_stats.total_runs += 1
+        track_stats.partial_runs += 1 if ghost.partial else 0
+        track_stats.total_time += ghost.duration
+        if utp is None:
+            track_stats.unique_users += 1
+        track_stats.save()
 
-    user_stats = UserStats.objects.filter(user=user).first()
-    if user_stats is None: user_stats = UserStats(user=user)
-    user_stats.total_runs += 1
-    user_stats.partial_runs += 1 if ghost.partial else 0
-    if utp is None:
-        user_stats.unique_maps += 1
-    user_stats.save()
+    with transaction.atomic():
+        user_stats = UserStats.objects.filter(user=user).first()
+        if user_stats is None: user_stats = UserStats(user=user)
+        user_stats.total_runs += 1
+        user_stats.partial_runs += 1 if ghost.partial else 0
+        user_stats.total_time += ghost.duration
+        if utp is None:
+            user_stats.unique_maps += 1
+        user_stats.save()
 
 
 @requires_openplanet_auth(ARCHIVIST_PLUGIN_ID)
@@ -173,7 +178,7 @@ def ghost_upload(request: HttpRequest, map_uid: str, score: int, user: User):
     increment_stats(user, track, ghost)
     utp = UserTrackPlay(user=user, track=track, partial=partial, score=score, ghost=ghost, timestamp=now)
     utp.save()
-    return JsonResponse({'url': s3_url})
+    return json_resp(ghost)
 
 
 
