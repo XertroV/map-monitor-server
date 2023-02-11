@@ -311,26 +311,26 @@ def fmt_ms(ms: int):
 
 
 
-def get_fastest_time(map_uid, user: Optional[User] = None) -> str:
+def get_fastest_time(map_uid, user: Optional[User] = None) -> tuple[str, str]:
     a_fin = TrackEvent.objects.filter(type="Finish", map_uid=map_uid).first()
-    if a_fin is None: return "0:00:000"
+    if a_fin is None: return "0:00:000", "--"
     nb_cps = a_fin.cp_count
     kwargs = dict() if user is None else {'user': user}
     te = TrackEvent.objects.filter(
         Q(type="Finish") | Q(type="Checkpoint", cp_count=nb_cps),
         map_uid=map_uid, **kwargs).filter(race_time__gt=0).order_by('race_time').first()
-    if te is None: return "0:00:000"
-    return fmt_ms(te.race_time)
+    if te is None: return "0:00:000", "--"
+    return fmt_ms(te.race_time), te.user.display_name
 
-def get_most_recent_time(map_uid) -> str:
+def get_most_recent_time(map_uid) -> tuple[str, str]:
     a_fin = TrackEvent.objects.filter(type="Finish", map_uid=map_uid).first()
-    if a_fin is None: return "0:00:000"
+    if a_fin is None: return "0:00:000", "--"
     nb_cps = a_fin.cp_count
     te = TrackEvent.objects.filter(
         Q(type="Finish") | Q(type="Checkpoint", cp_count=nb_cps),
         map_uid=map_uid).last()
-    if te is None: return "0:00:000"
-    return fmt_ms(te.race_time)
+    if te is None: return "0:00:000", "--"
+    return fmt_ms(te.race_time), te.user.display_name
 
 
 
@@ -348,9 +348,9 @@ def post_mapalitics_event(request: HttpRequest, token: MapaliticsToken):
     your_finishes = TrackEvent.objects.filter(type="Finish", user=token.user, map_uid=evt.map_uid).count()
     total_respawns = TrackEvent.objects.filter(type="Respawn", map_uid=evt.map_uid).count()
     total_finishes = TrackEvent.objects.filter(type="Finish", map_uid=evt.map_uid).count()
-    fastest_time = get_fastest_time(evt.map_uid)
-    your_best_time = get_fastest_time(evt.map_uid, token.user)
-    most_recent_time = get_most_recent_time(evt.map_uid)
+    fastest_time, fastest_player = get_fastest_time(evt.map_uid)
+    your_best_time, _ = get_fastest_time(evt.map_uid, token.user)
+    most_recent_time, most_recent_time_player = get_most_recent_time(evt.map_uid)
 
 
     return HttpResponse(
@@ -363,8 +363,8 @@ def post_mapalitics_event(request: HttpRequest, token: MapaliticsToken):
                   , f", Finishes: {total_finishes}"
                   , f", Respawns: {total_respawns}"
                   , f", Players: {total_players}"])
-                  , f"Fastest Time: {fastest_time}"
-                  , f"Latest Time: {most_recent_time}"
+                  , f"Fastest Time: {fastest_time} (by {fastest_player})"
+                  , f"Latest Time: {most_recent_time} (by {most_recent_time_player})"
                   , f""
                   ][1:]))
 
