@@ -22,3 +22,9 @@ class TrackEvent(models.Model):
     cp_count: int = models.IntegerField(default=-1)
     # todo: position and velocity
     created_ts = models.IntegerField('created timestamp', default=time.time)
+    vx: float = models.FloatField(default=-1)
+    vy: float = models.FloatField(default=-1)
+    vz: float = models.FloatField(default=-1)
+    px: float = models.FloatField(default=-1)
+    py: float = models.FloatField(default=-1)
+    pz: float = models.FloatField(default=-1)

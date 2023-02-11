@@ -358,14 +358,20 @@ def associate(token: MapaliticsToken, event: dict):
 def add_event(token: MapaliticsToken, event: dict) -> TrackEvent:
     # event.get('DisplayName')
         # event.get('WSID')
+    pos = event.get('Position')
+    vel = event.get('Velocity')
     te = TrackEvent(
         type=event.get('Type'),
         map_uid=event.get('MapUid'),
         user=token.user,
         race_time=event.get('RaceTime'),
-        cp_count=event.get('CpCount')
-        # event.get('Position')
-        # event.get('Velocity')
+        cp_count=event.get('CpCount'),
+        vx = vel[0],
+        vy = vel[1],
+        vz = vel[2],
+        px = pos[0],
+        py = pos[1],
+        pz = pos[2],
     )
     te.save()
     return te
