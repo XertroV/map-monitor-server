@@ -179,13 +179,13 @@ declare Integer LastNbRespawns;
 declare Integer LastNbCheckpoints;
 declare Vec3 LastPosition;
 declare Vec3 LastVelocity;
+declare Boolean LastUISeqFinish;
 
 
 Void CheckUpdateCheckpoints() {
     declare Integer curr = GetCurrentCpCount();
     if (curr > LastNbCheckpoints) {
-        if (IsFinish()) FireEvent("Finish");
-        else FireEvent("Checkpoint", GetLastCpTime());
+        FireEvent("Checkpoint", GetLastCpTime());
     }
     LastNbCheckpoints = curr;
 }
@@ -223,9 +223,20 @@ Void CheckLabel() {
     }
 }
 
+Void CheckFinish() {
+    if (LastUISeqFinish != IsFinish()) {
+        MLHookLog("Finish: " ^ IsFinish());
+        LastUISeqFinish = IsFinish();
+        if (LastUISeqFinish) {
+            FireEvent("Finish", GetLastCpTime());
+        }
+    }
+}
+
 Void CheckForEvents() {
     CheckLabel();
     CheckUpdateRestartRaceTime();
+    CheckFinish();
     CheckUpdateRespawns();
     CheckUpdateCheckpoints();
 }
@@ -235,6 +246,7 @@ Void CheckForEvents() {
 main() {
     MLHookLog("Token: " ^ C_Mapalitics_Token);
     LabelHidden = False;
+    LastUISeqFinish = False;
     LoadMapTime = Now;
     CurrPlayerIx = -1;
     LastRaceTime = -999999;
