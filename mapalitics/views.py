@@ -281,6 +281,22 @@ def get_mapalitics_token(f):
     return inner
 
 
+def fmt_ms(ms: int):
+    frac = ms % 1000
+    ms = ms // 1000
+    sec = ms % 60
+    ms = ms // 60
+    min = ms
+    return f"{min}:{sec:02d}.{frac:03d}"
+
+
+
+def get_fastest_time(map_uid) -> str:
+    te = TrackEvent.objects.filter(type="Finish", map_uid=map_uid).filter(race_time__gt=0).order_by('race_time').first()
+    if te is None: return "0:00:000"
+    return fmt_ms(te.race_time)
+
+
 
 @get_mapalitics_token
 def post_mapalitics_event(request: HttpRequest, token: MapaliticsToken):
@@ -296,6 +312,8 @@ def post_mapalitics_event(request: HttpRequest, token: MapaliticsToken):
     your_finishes = TrackEvent.objects.filter(type="Finish", user=token.user, map_uid=evt.map_uid).count()
     total_respawns = TrackEvent.objects.filter(type="Respawn", map_uid=evt.map_uid).count()
     total_finishes = TrackEvent.objects.filter(type="Finish", map_uid=evt.map_uid).count()
+    fastest_time = get_fastest_time(evt.map_uid)
+
 
     return HttpResponse(
         '\n'.join([ ""
@@ -306,6 +324,7 @@ def post_mapalitics_event(request: HttpRequest, token: MapaliticsToken):
                   , f"Total Respawns: {total_respawns}"
                   , f"Total Finishes: {total_finishes}"
                   , f"Total Players: {total_players}"
+                  , f"Fastest Time: {fastest_time}"
                   , f""
                   ][1:]))
 
