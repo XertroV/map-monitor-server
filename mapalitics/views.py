@@ -2,7 +2,7 @@ import json
 import os
 from django.shortcuts import render
 from django.http import JsonResponse, HttpResponseNotAllowed, HttpRequest, HttpResponseForbidden, HttpResponse
-from django.db.models import Count
+from django.db.models import Count, Q
 
 from mapalitics.models import MapaliticsToken, TrackEvent, User
 
@@ -309,7 +309,12 @@ def fmt_ms(ms: int):
 
 
 def get_fastest_time(map_uid) -> str:
-    te = TrackEvent.objects.filter(type="Finish", map_uid=map_uid).filter(race_time__gt=0).order_by('race_time').first()
+    a_fin = TrackEvent.objects.filter(type="Finish", map_uid=map_uid).first()
+    if a_fin is None: return "0:00:000"
+    nb_cps = a_fin.cp_count
+    te = TrackEvent.objects.filter(
+        Q(type="Finish") | Q(type="Checkpoint", cp_count=nb_cps),
+        map_uid=map_uid).filter(race_time__gt=0).order_by('race_time').first()
     if te is None: return "0:00:000"
     return fmt_ms(te.race_time)
 
