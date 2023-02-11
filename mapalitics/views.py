@@ -238,7 +238,7 @@ Void CheckFinish() {
 }
 
 Void CheckForEvents() {
-    CheckLabel();
+    // CheckLabel();
     CheckUpdateRestartRaceTime();
     CheckFinish();
     CheckUpdateRespawns();
