@@ -5,7 +5,7 @@ from django.shortcuts import render
 from django.http import JsonResponse, HttpResponseNotAllowed, HttpRequest, HttpResponseForbidden, HttpResponse
 from django.db.models import Count, Q
 
-from mapalitics.models import MapaliticsToken, TrackEvent, User
+from mapalitics.models import MapaliticsToken, TrackEvent, User, Zone
 
 
 
@@ -30,6 +30,7 @@ def get_ml_script(request: HttpRequest):
     Text MapUid;
     Text DisplayName;
     Text WSID;
+    Text ZonePath;
     Integer RaceTime;
     Integer CpCount;
     Vec3 Position;
@@ -160,7 +161,8 @@ Void FireEvent(Text EventName, Integer RaceTime) {
         RaceTime = RaceTime,
         CpCount = GetCurrentCpCount(),
         Position = GetCurrentPosition(),
-        Velocity = GetCurrentVelocity()
+        Velocity = GetCurrentVelocity(),
+        ZonePath = LocalUser.ZonePath
     };
     declare Msg = evt.tojson();
     MLHookLog("Sending Event: " ^ Msg);
@@ -348,13 +350,21 @@ def post_mapalitics_event(request: HttpRequest, token: MapaliticsToken):
     evt = add_event(token, event)
     print(request.body)
 
-    attempts = TrackEvent.objects.filter(type="MapLoad", map_uid=evt.map_uid).count()
-    your_attempts = TrackEvent.objects.filter(type="MapLoad", user=token.user, map_uid=evt.map_uid).count()
+    load_or_restart =  Q(type="MapLoad") | Q(type="Restart")
+    finishes = Q(type="Finish")
+    a_fin = TrackEvent.objects.filter(type="Finish", map_uid=evt.map_uid).first()
+    if a_fin is not None:
+        finishes = finishes | Q(type="Checkpoint", cp_count=a_fin.cp_count)
+
+
+    attempts = TrackEvent.objects.filter(load_or_restart, map_uid=evt.map_uid).count()
+    your_attempts = TrackEvent.objects.filter(load_or_restart, user=token.user, map_uid=evt.map_uid).count()
     total_players = TrackEvent.objects.filter(map_uid=evt.map_uid).values('user_id').distinct().count()
+    total_zones = TrackEvent.objects.filter(map_uid=evt.map_uid).values('zone').distinct().count()
     your_respawns = TrackEvent.objects.filter(type="Respawn", user=token.user, map_uid=evt.map_uid).count()
-    your_finishes = TrackEvent.objects.filter(type="Finish", user=token.user, map_uid=evt.map_uid).count()
+    your_finishes = TrackEvent.objects.filter(finishes, user=token.user, map_uid=evt.map_uid).count()
     total_respawns = TrackEvent.objects.filter(type="Respawn", map_uid=evt.map_uid).count()
-    total_finishes = TrackEvent.objects.filter(type="Finish", map_uid=evt.map_uid).count()
+    total_finishes = TrackEvent.objects.filter(finishes, map_uid=evt.map_uid).count()
     fastest_time, fastest_player = get_fastest_time(evt.map_uid)
     your_best_time, _ = get_fastest_time(evt.map_uid, token.user)
     most_recent_time, most_recent_time_player = get_most_recent_time(evt.map_uid)
@@ -362,6 +372,7 @@ def post_mapalitics_event(request: HttpRequest, token: MapaliticsToken):
 
     return HttpResponse(
         '\n'.join([ ""
+                  , '$i$8fbDemo Mode (invisible normally)$z$s'
                   , ''.join([f"$oYour:$o Attempts: {your_attempts}"
                   , f", Finishes: {your_finishes}"
                   , f", Respawns: {your_respawns}"
@@ -369,7 +380,8 @@ def post_mapalitics_event(request: HttpRequest, token: MapaliticsToken):
                   , ''.join([f"$oTotal:$o Attempts: {attempts}"
                   , f", Finishes: {total_finishes}"
                   , f", Respawns: {total_respawns}"
-                  , f", Players: {total_players}"])
+                  , f", Players: {total_players}"
+                  , f", Zones: {total_zones}"])
                   , f"Fastest Time: {fastest_time} (by {fastest_player})"
                   , f"Latest Time: {most_recent_time} (by {most_recent_time_player})"
                   , f"Latest CP: {most_recent_cp_time} (by {most_recent_cp_time_player})"
@@ -391,11 +403,20 @@ def associate(token: MapaliticsToken, event: dict):
     return
 
 
+def get_zone(zone_path: str):
+    zone = Zone.objects.filter(zone_path=zone_path).first()
+    if zone is None:
+        zone = Zone(zone_path=zone_path)
+        zone.save()
+    return zone
+
+
 def add_event(token: MapaliticsToken, event: dict) -> TrackEvent:
     # event.get('DisplayName')
         # event.get('WSID')
     pos = event.get('Position')
     vel = event.get('Velocity')
+    zone = get_zone(event.get('ZonePath', 'World'))
     te = TrackEvent(
         type=event.get('Type'),
         map_uid=event.get('MapUid'),
@@ -408,6 +429,7 @@ def add_event(token: MapaliticsToken, event: dict) -> TrackEvent:
         px = pos[0],
         py = pos[1],
         pz = pos[2],
+        zone=zone
     )
     te.save()
     return te
