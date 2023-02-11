@@ -124,9 +124,8 @@ def get_track_mb_create(uid: str) -> Track:
     if track is None:
         track = Track(uid=uid)
         track_info = run_async(nadeoapi.core_get_maps_by_uid([uid]))
-        print(track_info)
-        logging.warn(f"track_info: {track_info}")
-        if len(track_info) > 0:
+        # logging.warn(f"track_info: {track_info}")
+        if track_info is list and len(track_info) > 0:
             track_info: dict = track_info[0]
             track.map_id = track_info.get('mapId', None)
             track.name = track_info.get('name', None)

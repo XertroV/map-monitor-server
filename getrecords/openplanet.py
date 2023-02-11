@@ -34,7 +34,7 @@ async def check_token(token: str, plugin_id: int) -> Optional[TokenResp]:
     if _config is None:
         logging.error(f"@Dev: Bad plugin_id: {plugin_id}")
         return None
-    cached = await get_token_cached_and_recent(token)
+    cached = await get_token_cached_and_recent(token, plugin_id)
     if cached is not None:
         return cached
     pl = dict(token=token, secret=_config['secret'])
@@ -47,11 +47,11 @@ async def check_token(token: str, plugin_id: int) -> Optional[TokenResp]:
             if "error" in resp_j:
                 logging.warn(f"Error from server for token check, status: {resp_j['error']}")
                 return None
-            return await save_token_from_json(token, resp_j)
+            return await save_token_from_json(token, plugin_id, resp_j)
 
-async def save_token_from_json(token, resp_j):
+async def save_token_from_json(token, plugin_id: int, resp_j):
     tr = TokenResp(**resp_j)
-    await KnownOpenplanetToken.objects.aupdate_or_create(account_id=tr.account_id,
+    await KnownOpenplanetToken.objects.aupdate_or_create(account_id=tr.account_id, plugin_site_id=plugin_id,
         defaults=dict(
             display_name=tr.display_name,
             token_time=tr.token_time,
@@ -61,9 +61,9 @@ async def save_token_from_json(token, resp_j):
     )
     return tr
 
-async def get_token_cached_and_recent(token):
+async def get_token_cached_and_recent(token, plugin_id):
     hashed = sha_256(token)
-    known_token = await KnownOpenplanetToken.objects.filter(hashed=hashed).afirst()
+    known_token = await KnownOpenplanetToken.objects.filter(hashed=hashed, plugin_site_id=plugin_id).afirst()
     if known_token is None or known_token.expire_at < time.time():
         return
     return TokenResp(account_id=known_token.account_id, display_name=known_token.display_name, token_time=known_token.token_time)
