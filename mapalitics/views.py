@@ -332,12 +332,19 @@ def get_most_recent_time(map_uid) -> tuple[str, str]:
     if te is None: return "0:00:000", "--"
     return fmt_ms(te.race_time), te.user.display_name
 
+def get_most_recent_cp_time(map_uid) -> tuple[str, str]:
+    te = TrackEvent.objects.filter(
+        type="Checkpoint",
+        map_uid=map_uid).last()
+    if te is None: return "0:00:000", "--"
+    return fmt_ms(te.race_time), te.user.display_name
 
 
 @get_mapalitics_token
 def post_mapalitics_event(request: HttpRequest, token: MapaliticsToken):
-    event = json.loads(request.body)
+    event: dict = json.loads(request.body)
     associate(token, event)
+    most_recent_cp_time, most_recent_cp_time_player = get_most_recent_cp_time(event.get('MapUid'))
     evt = add_event(token, event)
     print(request.body)
 
@@ -365,6 +372,7 @@ def post_mapalitics_event(request: HttpRequest, token: MapaliticsToken):
                   , f", Players: {total_players}"])
                   , f"Fastest Time: {fastest_time} (by {fastest_player})"
                   , f"Latest Time: {most_recent_time} (by {most_recent_time_player})"
+                  , f"Latest CP: {most_recent_cp_time} (by {most_recent_cp_time_player})"
                   , f""
                   ][1:]))
 
