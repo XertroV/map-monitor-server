@@ -144,6 +144,10 @@ Boolean IsFinish() {
     return UI.UISequence == CUIConfig::EUISequence::Finish;
 }
 
+Boolean IsPlaying() {
+    return UI.UISequence == CUIConfig::EUISequence::Playing;
+}
+
 
 Void FireEvent(Text EventName, Integer RaceTime) {
     MLHookLog("Firing: " ^ EventName);
@@ -251,7 +255,8 @@ main() {
     CurrPlayerIx = -1;
     LastRaceTime = -999999;
     MLHookLog("Starting at "^Now);
-    FireEvent("MapLoad");
+    if (IsPlaying())
+        FireEvent("MapLoad");
     while (True) {
         yield;
         UpdateHttpRequests();
