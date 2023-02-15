@@ -65,7 +65,8 @@ class Ghost(models.Model):
     url: str = models.CharField(max_length=128)
     timestamp: int = models.IntegerField(default=time.time)
     hash_hex: str = models.CharField(max_length=64)
-    partial = models.BooleanField()
+    partial = models.BooleanField(db_index=True)
+    segmented = models.BooleanField(default=False, db_index=True)
     duration = models.IntegerField()
     size_bytes = models.IntegerField(default=-1)
     class Meta:
@@ -76,7 +77,8 @@ class Ghost(models.Model):
 class UserTrackPlay(models.Model):
     user = models.ForeignKey(User, on_delete=models.DO_NOTHING, db_index=True)
     track = models.ForeignKey(Track, on_delete=models.DO_NOTHING, db_index=True)
-    partial = models.BooleanField()
+    partial = models.BooleanField(db_index=True)
+    segmented = models.BooleanField(default=False, db_index=True)
     score = models.IntegerField()
     ghost = models.ForeignKey(Ghost, on_delete=models.DO_NOTHING, db_index=True)
     timestamp: int = models.IntegerField(default=time.time)
@@ -89,6 +91,7 @@ class TrackStats(models.Model):
     track = models.ForeignKey(Track, on_delete=models.DO_NOTHING, db_index=True)
     total_runs: int = models.IntegerField(default=0, db_index=True)
     partial_runs: int = models.IntegerField(default=0, db_index=True)
+    segmented_runs: int = models.IntegerField(default=0, db_index=True)
     unique_users: int = models.IntegerField(default=0, db_index=True)
     total_time: int = models.IntegerField(default=0, db_index=True)
 
@@ -96,5 +99,6 @@ class UserStats(models.Model):
     user = models.ForeignKey(User, on_delete=models.DO_NOTHING, db_index=True)
     total_runs: int = models.IntegerField(default=0, db_index=True)
     partial_runs: int = models.IntegerField(default=0, db_index=True)
+    segmented_runs: int = models.IntegerField(default=0, db_index=True)
     unique_maps: int = models.IntegerField(default=0, db_index=True)
     total_time: int = models.IntegerField(default=0, db_index=True)

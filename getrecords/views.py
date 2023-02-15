@@ -142,9 +142,11 @@ def increment_stats(user: User, track: Track, ghost: Ghost):
     with transaction.atomic():
         track_stats = TrackStats.objects.filter(track=track).first()
         if track_stats is None: track_stats = TrackStats(track=track)
-        track_stats.total_runs += 1
+        track_stats.total_runs += 1 if not ghost.segmented else 0
+        track_stats.segmented_runs += 1 if ghost.segmented else 0
         track_stats.partial_runs += 1 if ghost.partial else 0
-        track_stats.total_time += ghost.duration
+        if not ghost.segmented:
+            track_stats.total_time += ghost.duration
         if utp is None:
             track_stats.unique_users += 1
         track_stats.save()
@@ -152,9 +154,11 @@ def increment_stats(user: User, track: Track, ghost: Ghost):
     with transaction.atomic():
         user_stats = UserStats.objects.filter(user=user).first()
         if user_stats is None: user_stats = UserStats(user=user)
-        user_stats.total_runs += 1
+        user_stats.total_runs += 1 if not ghost.segmented else 0
+        user_stats.segmented_runs += 1 if ghost.segmented else 0
         user_stats.partial_runs += 1 if ghost.partial else 0
-        user_stats.total_time += ghost.duration
+        if not ghost.segmented:
+            user_stats.total_time += ghost.duration
         if utp is None:
             user_stats.unique_maps += 1
         user_stats.save()
@@ -165,18 +169,19 @@ def ghost_upload(request: HttpRequest, map_uid: str, score: int, user: User):
     if request.method != "POST": return HttpResponseNotAllowed(['POST'])
     now = int(time.time())
     partial = request.GET.get('partial', 'false').lower() == 'true'
+    segmented = request.GET.get('segmented', 'false').lower() == 'true'
     ghost_data = request.body
     track = get_track_mb_create(map_uid)
     ghost_hash = sha_256_b_ts(ghost_data, now)
     s3_url = upload_ghost_to_s3(ghost_hash, ghost_data)
     ghost = Ghost(user=user, track=track, url=s3_url,
                   timestamp=now, hash_hex=ghost_hash,
-                  partial=partial, duration=score,
-                  size_bytes=len(ghost_data))
+                  partial=partial, segmented=segmented,
+                  duration=score, size_bytes=len(ghost_data))
     ghost.save()
     # do this before we make the UTP record so we can test if we need to increment the unique_* properties of TrackStats and UserStats
     increment_stats(user, track, ghost)
-    utp = UserTrackPlay(user=user, track=track, partial=partial, score=score, ghost=ghost, timestamp=now)
+    utp = UserTrackPlay(user=user, track=track, partial=partial, segmented=segmented, score=score, ghost=ghost, timestamp=now)
     utp.save()
     return json_resp(ghost)
 

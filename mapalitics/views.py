@@ -90,9 +90,11 @@ Void UpdateHttpRequests() {
 declare Integer CurrPlayerIx;
 
 Integer FindPlayerIx() {
-    for (I, 0, Players.count) {
-        if (Players[I].User.Name == LocalUser.Name) {
-            return I;
+    if (Players.count > 0) {
+        for (I, 0, Players.count) {
+            if (Players[I].User.Name == LocalUser.Name) {
+                return I;
+            }
         }
     }
     return -1;
