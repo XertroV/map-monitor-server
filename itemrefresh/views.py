@@ -9,6 +9,8 @@ from django.shortcuts import render
 import requests
 import zipfile
 
+from itemrefresh.gbxnet import generate_map_bytes
+
 # Create your views here.
 
 def create_map(request: HttpRequest):
