@@ -14,6 +14,10 @@ from dataclasses import dataclass
 
 import requests
 
+import sys
+
+IS_WINDOWS = sys.platform.startswith('win32')
+
 BASE_MAP_URL = "https://github.com/XertroV/map-monitor-server/raw/895f8a191f526513aae9d0cb1e9fd25fad592948/base_map/item_refresh_base.Map.Gbx"
 BASE_MAP_PATH = "C:/item_refresh_base.Map.Gbx"
 BASE_MAP_HASH = "fbd192a872519f1bae92e55761ab7590d15588e29f695f8c18a83df79fed8d3c"
@@ -36,7 +40,8 @@ class EmbedRequest:
 
 def generate_map_bytes(item_paths: EmbedRequest):
     # ensure_map_base_downloaded()
-    ensure_gbx_net_exe_downloaded()
+    if IS_WINDOWS:
+        ensure_gbx_net_exe_downloaded()
     return run_map_generation(item_paths)
 
 def ensure_map_base_downloaded():
@@ -100,6 +105,8 @@ def run_map_generation(item_paths: EmbedRequest) -> bytes:
         items.append(item)
 
     resp = run_place_objects_on_map(item_paths.map_bytes, [], items, clean_items=True)
+
+    print(f"list dir: {os.listdir(tmpdir)}")
 
     os.chdir(_curdir)
     shutil.rmtree(tmpdir, ignore_errors=True)
