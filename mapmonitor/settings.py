@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/4.1/ref/settings/
 
 import os
 from pathlib import Path
+import sys
 
 import environ
 import dj_database_url
@@ -54,6 +55,13 @@ INSTALLED_APPS = [
     # 'django.contrib.staticfiles',
     'django_extensions',
 ]
+
+IS_WINDOWS = sys.platform.startswith('win32')
+if IS_WINDOWS:
+    print(f"IS_WINDOWS: {IS_WINDOWS}")
+
+if IS_WINDOWS:
+    INSTALLED_APPS = []
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -115,6 +123,12 @@ DATABASES = {
         'PORT': '5432',
     }
 }
+
+if IS_WINDOWS:
+    DATABASES = {'sqlite': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
+    },}
 
 # Password validation
 # https://docs.djangoproject.com/en/4.1/ref/settings/#auth-password-validators

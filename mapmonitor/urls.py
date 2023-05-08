@@ -13,6 +13,7 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+import sys
 from django.contrib import admin
 from django.urls import path, include
 
@@ -22,3 +23,7 @@ urlpatterns = [
     path('', include('mapalitics.urls')),
     path('', include('itemrefresh.urls')),
 ]
+
+IS_WINDOWS = sys.platform.startswith('win32')
+if IS_WINDOWS:
+    urlpatterns = [urlpatterns[-1]]
