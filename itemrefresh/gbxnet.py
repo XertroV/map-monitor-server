@@ -87,7 +87,7 @@ def run_map_generation(item_paths: list[str]) -> bytes:
     resp = run_place_objects_on_map([], items, clean_items=False)
 
     os.chdir(_curdir)
-    shutil.rmtree(tmpdir)
+    shutil.rmtree(tmpdir, ignore_errors=True)
 
     return resp
 
