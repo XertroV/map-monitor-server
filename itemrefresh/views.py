@@ -4,7 +4,7 @@ import logging
 from pathlib import Path
 import time
 from typing import Coroutine
-from django.http import HttpRequest, HttpResponseNotAllowed, JsonResponse, HttpResponseBadRequest, FileResponse
+from django.http import HttpRequest, HttpResponse, HttpResponseNotAllowed, JsonResponse, HttpResponseBadRequest, FileResponse
 from django.shortcuts import render
 import requests
 import zipfile
@@ -23,7 +23,7 @@ def create_map(request: HttpRequest):
     if not isinstance(item_paths, list):
         return HttpResponseBadRequest("item paths not a list")
     map_bytes = generate_map_bytes(item_paths)
-    return FileResponse(map_bytes, filename=f'map-with-items-{time.time()}.Map.Gbx', content_type='application/octet-stream')
+    return HttpResponse(map_bytes, filename=f'map-with-items-{time.time()}.Map.Gbx', content_type='application/octet-stream')
 
 
 
