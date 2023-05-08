@@ -88,7 +88,7 @@ def run_map_generation(item_paths: list[str]) -> bytes:
         item_path.write_bytes(minimal_item)
         items.append(item)
 
-    resp = run_place_objects_on_map([], items, clean_items=False)
+    resp = run_place_objects_on_map([], items, clean_items=True)
 
     os.chdir(_curdir)
     shutil.rmtree(tmpdir, ignore_errors=True)
