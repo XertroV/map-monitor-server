@@ -17,15 +17,18 @@ import sys
 from django.contrib import admin
 from django.urls import path, include
 
-urlpatterns = [
-    path('admin/', admin.site.urls),
-    path('', include('getrecords.urls')),
-    path('', include('mapalitics.urls')),
-    path('', include('itemrefresh.urls')),
-]
+# populated below
+urlpatterns = []
 
 IS_WINDOWS = sys.platform.startswith('win32')
 if IS_WINDOWS:
     urlpatterns = [
+        path('', include('itemrefresh.urls')),
+    ]
+else:
+    urlpatterns = [
+        path('admin/', admin.site.urls),
+        path('', include('getrecords.urls')),
+        path('', include('mapalitics.urls')),
         path('', include('itemrefresh.urls')),
     ]
