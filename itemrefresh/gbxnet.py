@@ -75,7 +75,7 @@ def run_map_generation(item_paths: list[str]) -> bytes:
     for ip in item_paths:
         item = DotnetItem(ip, ip, DotnetVector3(
             random.random() * 48. * 32.,
-            random.random() * 40. * 40 * 8,
+            100,
             random.random() * 48. * 32.
         ), DotnetVector3(), DotnetVector3())
         item_path = Path(ip)
