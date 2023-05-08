@@ -272,8 +272,9 @@ def run_place_objects_on_map(
 ) -> bytes:
     base_name = f"map-export-{time.time()}-{random.randint(0, 100000)}"
     config_path = f'{base_name}.json'
-    _out_map_path = f'{base_name}.Map.Gbx'
-    _populated_out_map_path = f"{base_name}_p.Map.Gbx"
+    _out_map_path = f'Maps/{base_name}.Map.Gbx'
+    _populated_out_map_path = f"Maps/{base_name}_p.Map.Gbx"
+    Path('Maps').mkdir()
     out_map_path = Path(_out_map_path)
     out_map_path.write_bytes(base_map_bytes)
     overwrite = True
