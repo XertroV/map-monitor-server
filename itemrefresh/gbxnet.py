@@ -226,12 +226,13 @@ def run_place_objects_on_map(
     _populated_out_map_path = f"{base_name}_p.Map.Gbx"
     out_map_path = Path(_out_map_path)
     out_map_path.write_bytes(Path(BASE_MAP_PATH).read_bytes())
+    overwrite = False
 
     cfg = DotnetPlaceObjectsOnMap(
             _out_map_path,
             blocks,
             items,
-            True,
+            overwrite,
             map_suffix,
             clean_blocks,
             clean_items,
@@ -250,7 +251,7 @@ def run_place_objects_on_map(
     if not res.success:
         raise Exception(f"dotnet exe failed: {res.message}")
     print([config_path, _out_map_path, _populated_out_map_path])
-    ret_bytes = Path(_populated_out_map_path).read_bytes()
+    ret_bytes = Path(_out_map_path if overwrite else _populated_out_map_path).read_bytes()
     # os.remove(config_path)
     # os.remove(_out_map_path)
     # os.remove(_populated_out_map_path)
