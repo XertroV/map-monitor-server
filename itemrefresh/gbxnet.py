@@ -89,20 +89,22 @@ def run_map_generation(item_paths: EmbedRequest) -> bytes:
 
     items = []
     for ip, item_bytes in item_paths.zipped_items():
-        item = DotnetItem(ip, 'Items\\' + ip, DotnetVector3(
+        itemNameOnly = Path(ip).name
+        item = DotnetItem(itemNameOnly, itemNameOnly, DotnetVector3(
             random.random() * 48. * 32.,
             100,
             random.random() * 48. * 32.
         ), DotnetVector3(), DotnetVector3())
-        item_path = Path(ip)
+        item_path = Path(itemNameOnly)
         if not ip.lower().endswith('.gbx'):
             raise Exception('bad file name')
         if ('../' in ip or '..\\' in ip):
             raise Exception('bad path')
-        item_folder = Path('Items') / item_path.parent
-        if not item_folder.exists():
-            item_folder.mkdir(parents=True, exist_ok=True)
-        (Path('Items') / item_path).write_bytes(item_bytes)
+        # item_folder = Path('Items') / item_path.parent
+        # if not item_folder.exists():
+        #     item_folder.mkdir(parents=True, exist_ok=True)
+        # (Path('Items') / item_path).write_bytes(item_bytes)
+        (item_path).write_bytes(item_bytes)
         items.append(item)
 
     resp = run_place_objects_on_map(item_paths.map_bytes, [], items, clean_items=True)
