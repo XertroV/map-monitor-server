@@ -26,4 +26,6 @@ urlpatterns = [
 
 IS_WINDOWS = sys.platform.startswith('win32')
 if IS_WINDOWS:
-    urlpatterns = [urlpatterns[-1]]
+    urlpatterns = [
+        path('', include('itemrefresh.urls')),
+    ]
