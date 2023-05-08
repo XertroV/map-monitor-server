@@ -89,7 +89,7 @@ def run_map_generation(item_paths: EmbedRequest) -> bytes:
 
     items = []
     for ip, item_bytes in item_paths.zipped_items():
-        item = DotnetItem(ip, ip, DotnetVector3(
+        item = DotnetItem(ip, 'Items\\' + ip, DotnetVector3(
             random.random() * 48. * 32.,
             100,
             random.random() * 48. * 32.
