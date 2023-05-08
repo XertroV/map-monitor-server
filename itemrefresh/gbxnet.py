@@ -99,9 +99,10 @@ def run_map_generation(item_paths: EmbedRequest) -> bytes:
             raise Exception('bad file name')
         if ('../' in ip or '..\\' in ip):
             raise Exception('bad path')
-        if not item_path.parent.exists():
-            item_path.parent.mkdir(parents=True, exist_ok=True)
-        item_path.write_bytes(item_bytes)
+        item_folder = Path('Items') / item_path.parent
+        if not item_folder.exists():
+            item_folder.mkdir(parents=True, exist_ok=True)
+        (Path('Items') / item_path).write_bytes(item_bytes)
         items.append(item)
 
     resp = run_place_objects_on_map(item_paths.map_bytes, [], items, clean_items=True)
