@@ -73,7 +73,11 @@ def run_map_generation(item_paths: list[str]) -> bytes:
 
     items = []
     for ip in item_paths:
-        item = DotnetItem(ip, ip, DotnetVector3(), DotnetVector3(), DotnetVector3())
+        item = DotnetItem(ip, ip, DotnetVector3(
+            random.random() * 48. * 32.,
+            random.random() * 40. * 40 * 8,
+            random.random() * 48. * 32.
+        ), DotnetVector3(), DotnetVector3())
         item_path = Path(ip)
         if not ip.lower().endswith('.gbx'):
             raise Exception('bad file name')
