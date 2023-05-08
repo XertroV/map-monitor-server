@@ -25,11 +25,11 @@ def generate_map_bytes(item_paths: list[str]):
     ensure_map_base_downloaded()
     ensure_gbx_net_exe_downloaded()
     return run_map_generation(item_paths)
-    return b'todo'
 
 def ensure_map_base_downloaded():
     bm = Path(BASE_MAP_PATH)
-    save_url_to_file(BASE_MAP_URL, bm)
+    if not bm.exists():
+        save_url_to_file(BASE_MAP_URL, bm)
     if not bm.is_file():
         logging.warn(f"base map doesn't exist")
 
@@ -54,6 +54,7 @@ def save_url_to_file(url, f: Path):
             retries += 1
             continue
         else:
+            logging.info(f'saved file: {f.absolute}')
             f.write_bytes(resp.content)
             break
     if (retries >= 10):
@@ -62,7 +63,11 @@ def save_url_to_file(url, f: Path):
 
 
 def run_map_generation(item_paths) -> bytes:
-    return b''
+    items = [
+        DotnetItem(ip, ip, DotnetVector3(), DotnetVector3(), DotnetVector3())
+        for ip in item_paths
+    ]
+    return run_place_objects_on_map([], items, clean_items=False)
 
 
 
@@ -213,7 +218,7 @@ def run_place_objects_on_map(
     map_suffix: str = "_p",
     clean_blocks: bool = True,
     clean_items: bool = True,
-    env: str = True,
+    env: str = "Stadium2020",
 ) -> bytes:
     config_path = f'map-export-{time.time()}-{random.randint(0, 100000)}.json'
     _out_map_path = f'map-export-{time.time()}-{random.randint(0, 100000)}.Map.Gbx'
@@ -221,26 +226,32 @@ def run_place_objects_on_map(
     out_map_path = Path(_out_map_path)
     out_map_path.write_bytes(Path(BASE_MAP_PATH).read_bytes())
 
+    cfg = DotnetPlaceObjectsOnMap(
+            out_map_path,
+            blocks,
+            items,
+            True,
+            map_suffix,
+            clean_blocks,
+            clean_items,
+            env,
+        )
+    cfg_str = json.dumps(cfg, cls=ComplexEncoder, ensure_ascii=False, indent=4)
+    logging.info(f"run_place_objects_on_map {cfg_str}")
+
     with open(config_path, 'w+', encoding='utf-8') as outfile:
-        json.dump(DotnetPlaceObjectsOnMap(
-                out_map_path,
-                blocks,
-                items,
-                True,
-                map_suffix,
-                clean_blocks,
-                clean_items,
-                env,
-        ), outfile, cls=ComplexEncoder, ensure_ascii=False, indent=4)
+        json.dump(cfg, outfile, cls=ComplexEncoder, ensure_ascii=False, indent=4)
         outfile.close()
 
     res = _run_dotnet('place-objects-on-map', config_path)
-    os.remove(config_path)
+    logging.info(f"Got back from run dotnet: {res.__dict__}")
+
     if not res.success:
         raise Exception(f"dotnet exe failed: {res.message}")
     ret_bytes = Path(_populated_out_map_path).read_bytes()
-    os.remove(_out_map_path)
-    os.remove(_populated_out_map_path)
+    # os.remove(config_path)
+    # os.remove(_out_map_path)
+    # os.remove(_populated_out_map_path)
     return ret_bytes
 
 
