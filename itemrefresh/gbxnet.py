@@ -12,13 +12,13 @@ import zipfile
 import requests
 
 BASE_MAP_URL = "https://github.com/XertroV/map-monitor-server/raw/895f8a191f526513aae9d0cb1e9fd25fad592948/base_map/item_refresh_base.Map.Gbx"
-BASE_MAP_PATH = "/tmp/item_refresh_base.Map.Gbx"
+BASE_MAP_PATH = "C:/item_refresh_base.Map.Gbx"
 BASE_MAP_HASH = "fbd192a872519f1bae92e55761ab7590d15588e29f695f8c18a83df79fed8d3c"
 GBX_NET_URL = "https://github.com/skyslide22/blendermania-assets/releases/download/Blendermania_Dotnet_v0.0.5/Blendermania_Dotnet_v0.0.5.zip"
-GBX_NET_ZIP = "/tmp/Blendermania_Dotnet_v0.0.5.zip"
+GBX_NET_ZIP = "C:/Blendermania_Dotnet_v0.0.5.zip"
 GBX_NET_ZIP_HASH = "c6b91c9df7beeab773863a238ae1bbc4c3e22a78a7b28e1714433b0c44644d9b"
 GBX_NET_EXE_NAME = "Blendermania_Dotnet_v0.0.5.exe"
-GBX_NET_EXE = "/tmp/Blendermania_Dotnet_v0.0.5.exe"
+GBX_NET_EXE = "C:/Blendermania_Dotnet_v0.0.5.exe"
 GBX_NET_EXE_HASH = "532d5004fce948d6b46303f6e160eebdc11494df84a4ddd8c2c296c1e05d65b6"
 
 def generate_map_bytes(item_paths: list[str]):
