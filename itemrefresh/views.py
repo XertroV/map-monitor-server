@@ -24,6 +24,7 @@ def create_map(request: HttpRequest):
     print('got req parts!')
     map_bytes = generate_map_bytes(req_parts)
     # filename=f'map-with-items-{time.time()}.Map.Gbx',
+    print('returning map bytes: ' + len(map_bytes))
     return HttpResponse(map_bytes, content_type='application/octet-stream')
 
 
