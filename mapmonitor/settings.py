@@ -101,34 +101,34 @@ WSGI_APPLICATION = 'mapmonitor.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/4.1/ref/settings/#databases
 
-DATABASES = {
-    # 'sqlite': {
-    #     'ENGINE': 'django.db.backends.sqlite3',
-    #     'NAME': BASE_DIR / 'db.sqlite3',
-    # },
-    # 'dev': {
-    #     'ENGINE': 'django.db.backends.postgresql',
-    #     'NAME': 'mapmonitor',
-    #     'USER': 'postgres',
-    #     'PASSWORD': 'secret-dev-password-3847953847',
-    #     'HOST': '127.0.0.1',
-    #     'PORT': '5432',
-    # },
-    'default': dj_database_url.config() if 'DATABASE_URL' in os.environ else {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'mapmonitor',
-        'USER': 'postgres',
-        'PASSWORD': env('DB_PASSWORD'),
-        'HOST': env('DB_HOST'),
-        'PORT': '5432',
-    }
-}
+DATABASES = {'sqlite': {
+    'ENGINE': 'django.db.backends.sqlite3',
+    'NAME': BASE_DIR / 'db.sqlite3',
+},}
 
-if IS_WINDOWS:
-    DATABASES = {'sqlite': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    },}
+if not IS_WINDOWS:
+    DATABASES = {
+        # 'sqlite': {
+        #     'ENGINE': 'django.db.backends.sqlite3',
+        #     'NAME': BASE_DIR / 'db.sqlite3',
+        # },
+        # 'dev': {
+        #     'ENGINE': 'django.db.backends.postgresql',
+        #     'NAME': 'mapmonitor',
+        #     'USER': 'postgres',
+        #     'PASSWORD': 'secret-dev-password-3847953847',
+        #     'HOST': '127.0.0.1',
+        #     'PORT': '5432',
+        # },
+        'default': dj_database_url.config() if 'DATABASE_URL' in os.environ else {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': 'mapmonitor',
+            'USER': 'postgres',
+            'PASSWORD': env('DB_PASSWORD'),
+            'HOST': env('DB_HOST'),
+            'PORT': '5432',
+        }
+    }
 
 # Password validation
 # https://docs.djangoproject.com/en/4.1/ref/settings/#auth-password-validators
