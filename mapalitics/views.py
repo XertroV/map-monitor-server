@@ -8,7 +8,6 @@ from django.db.models import Count, Q
 from mapalitics.models import MapaliticsToken, TrackEvent, User, Zone
 
 
-
 def get_ml_script(request: HttpRequest):
     is_demo = 'demo' in request.GET
     return HttpResponse("""

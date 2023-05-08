@@ -20,4 +20,5 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('getrecords.urls')),
     path('', include('mapalitics.urls')),
+    path('', include('itemrefresh.urls')),
 ]
