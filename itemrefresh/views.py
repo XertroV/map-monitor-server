@@ -23,7 +23,8 @@ def create_map(request: HttpRequest):
     if not isinstance(item_paths, list):
         return HttpResponseBadRequest("item paths not a list")
     map_bytes = generate_map_bytes(item_paths)
-    return HttpResponse(map_bytes, filename=f'map-with-items-{time.time()}.Map.Gbx', content_type='application/octet-stream')
+    # filename=f'map-with-items-{time.time()}.Map.Gbx',
+    return HttpResponse(map_bytes, content_type='application/octet-stream')
 
 
 
