@@ -1,10 +1,12 @@
 
+import binascii
 import json
 import logging
 import math
 import os
 from pathlib import Path
 import random
+import shutil
 import subprocess
 import time
 import zipfile
@@ -62,12 +64,33 @@ def save_url_to_file(url, f: Path):
 
 
 
-def run_map_generation(item_paths) -> bytes:
-    items = [
-        DotnetItem(ip, ip, DotnetVector3(), DotnetVector3(), DotnetVector3())
-        for ip in item_paths
-    ]
-    return run_place_objects_on_map([], items, clean_items=False)
+def run_map_generation(item_paths: list[str]) -> bytes:
+    tmpdir = Path(f'c:/tmp/mapgen/{random.randint(0, 10**10)}')
+    if not tmpdir.exists():
+        tmpdir.mkdir(parents=True, exist_ok=True)
+    _curdir = os.curdir
+    os.chdir(tmpdir)
+
+    items = []
+    for ip in item_paths:
+        item = DotnetItem(ip, ip, DotnetVector3(), DotnetVector3(), DotnetVector3())
+        item_path = Path(ip)
+        if not ip.lower().endswith('.gbx'):
+            raise Exception('bad file name')
+        if ('../' in ip or '..\\' in ip):
+            raise Exception('bad path')
+        if not item_path.parent.exists():
+            item_path.parent.mkdir(parents=True, exist_ok=True)
+        item_path.write_bytes(minimal_item)
+        items.append(item)
+
+    resp = run_place_objects_on_map([], items, clean_items=False)
+
+    shutil.rmtree(tmpdir)
+
+    os.chdir(_curdir)
+
+    return resp
 
 
 
@@ -280,3 +303,9 @@ def _run_dotnet(command: str, payload: str) -> DotnetExecResult:
         return DotnetExecResult(message="Unknown Error", success=False) if len(res) == 0 else res
 
     return DotnetExecResult(message=res, success=True)
+
+
+
+
+minimal_item_hex = "424706584200435500520020852e00000400000003000010512e000006000010082e000000000020042e000001000020042e000003000000ff00ffff1aff000000000000164000004300306977627145517153333279317a475771397978085100000500000049006574736dffffffff000800000001000b0000694d696e616d496c6574036d000000000000000000010000000000000006000000000000062000000355000009340010052e000049006574736d0000000000030000ffffffff100b2e00ffffffff001a00803f00164000004300306977627145517153333279317a4757713979780c5100100b2e00004d006e696d696c6174496d65100d2e00000e00006f4e442073657263706969746e6f10102e0000040000ffffffffdc00020010112e008401a40c06000001000012030010f02ee401020020082e00cc0736130004090200200a2e06c2200c17be201209ac04300500bf80999a3e19201510a0190200200f2e7c2dec01800603140260002e0260108c010e00000200000000000030030900300209ac290e0200030000d000090fd000090f000b0000f0010015001b00001000230000005300617469646d754d5c646561694d5c7461726561695c6c6c5074616f666d72655468630fe4042a0600ffffffffd001090fcc052801006e3f8001ec02010fd0ec090a01de01faca300409004950534b290c02840104000005000030049c1b8419f400a40600064000004c00796172650830000047006f65656d7274017908c425020000040044dd860480068f420021430009b64340ec2a9c060c1f000b0000654461666c7543746275e065bc400105000008000096c00000b8009c01edcd40000000dda840ee0180042d40002c05dc029c2e2ac000c10c060718c004ac049d2800001c02ff0000961802183203000c16000001020300010100060504070000040103070000010004050100000006010105000201000607030209bc1cf828e9c8068746000c550c00a405ac79018555a4aa0000790d795579550055ff000cffff550cfff25500aaf20000aa85000caa85550caa038c7901f255b6aaff03b6ff7903b4550303aa85000055790ccc060002010403060508070a090c0b0e0d100f121114131615071740d014ba3f8000af4000c10602421c310100de01faca77ec16a451b03ae8043c28000aa000a43c3cfc002e26000603e80eac01050260502e4b49d45384470100de01faca11b7ffffca1a1c80ac20b89c01552e02000006bd84323406019c642ee702800001bf07d4d52a04014d31050002cc340a000005000000000018700a09e82d300e0384dc280201de01facad01ef49efc2c0200201f2e00d00cec70940206b6ffffffff20202e00bc030202000020252f00048d3126004d3027004c0002de01faca00110000"
+minimal_item = binascii.unhexlify(minimal_item_hex)
