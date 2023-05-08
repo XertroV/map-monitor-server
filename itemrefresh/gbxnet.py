@@ -106,7 +106,7 @@ def run_map_generation(item_paths: EmbedRequest) -> bytes:
 
     resp = run_place_objects_on_map(item_paths.map_bytes, [], items, clean_items=True)
 
-    print(f"list dir: {os.listdir(tmpdir)}")
+    print(f"list dir: {list(tmpdir.glob('**/*'))}")
 
     os.chdir(_curdir)
     shutil.rmtree(tmpdir, ignore_errors=True)
