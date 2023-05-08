@@ -252,6 +252,7 @@ def run_place_objects_on_map(
         raise Exception(f"dotnet exe failed: {res.message}")
     print([config_path, _out_map_path, _populated_out_map_path])
     ret_bytes = Path(_out_map_path if overwrite else _populated_out_map_path).read_bytes()
+    print(ret_bytes[:10])
     # os.remove(config_path)
     # os.remove(_out_map_path)
     # os.remove(_populated_out_map_path)
