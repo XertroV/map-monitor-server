@@ -222,12 +222,12 @@ def run_place_objects_on_map(
 ) -> bytes:
     config_path = f'map-export-{time.time()}-{random.randint(0, 100000)}.json'
     _out_map_path = f'map-export-{time.time()}-{random.randint(0, 100000)}.Map.Gbx'
-    _populated_out_map_path = f'map-export-{time.time()}-{random.randint(0, 100000)}_p.Map.Gbx'
+    _populated_out_map_path = _out_map_path.replace('.Map.Gbx', '_p.Map.Gbx')
     out_map_path = Path(_out_map_path)
     out_map_path.write_bytes(Path(BASE_MAP_PATH).read_bytes())
 
     cfg = DotnetPlaceObjectsOnMap(
-            out_map_path,
+            _out_map_path,
             blocks,
             items,
             True,
