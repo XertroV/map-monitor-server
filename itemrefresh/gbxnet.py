@@ -220,9 +220,10 @@ def run_place_objects_on_map(
     clean_items: bool = True,
     env: str = "Stadium2020",
 ) -> bytes:
-    config_path = f'map-export-{time.time()}-{random.randint(0, 100000)}.json'
-    _out_map_path = f'map-export-{time.time()}-{random.randint(0, 100000)}.Map.Gbx'
-    _populated_out_map_path = _out_map_path.replace('.Map.Gbx', '_p.Map.Gbx')
+    base_name = f"map-export-{time.time()}-{random.randint(0, 100000)}"
+    config_path = f'{base_name}.json'
+    _out_map_path = f'{base_name}.Map.Gbx'
+    _populated_out_map_path = f"{base_name}_p.Map.Gbx"
     out_map_path = Path(_out_map_path)
     out_map_path.write_bytes(Path(BASE_MAP_PATH).read_bytes())
 
@@ -248,6 +249,7 @@ def run_place_objects_on_map(
 
     if not res.success:
         raise Exception(f"dotnet exe failed: {res.message}")
+    print([config_path, _out_map_path, _populated_out_map_path])
     ret_bytes = Path(_populated_out_map_path).read_bytes()
     # os.remove(config_path)
     # os.remove(_out_map_path)
