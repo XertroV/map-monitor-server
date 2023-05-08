@@ -31,8 +31,11 @@ class EmbedRequest:
     items: list[bytes]
     map_bytes: bytes
 
+    def zipped_items(self):
+        return zip(self.item_filenames, self.items)
+
 def generate_map_bytes(item_paths: EmbedRequest):
-    ensure_map_base_downloaded()
+    # ensure_map_base_downloaded()
     ensure_gbx_net_exe_downloaded()
     return run_map_generation(item_paths)
 
@@ -80,7 +83,7 @@ def run_map_generation(item_paths: EmbedRequest) -> bytes:
     os.chdir(tmpdir)
 
     items = []
-    for ip in item_paths.item_filenames:
+    for ip, item_bytes in item_paths.zipped_items():
         item = DotnetItem(ip, ip, DotnetVector3(
             random.random() * 48. * 32.,
             100,
@@ -93,10 +96,10 @@ def run_map_generation(item_paths: EmbedRequest) -> bytes:
             raise Exception('bad path')
         if not item_path.parent.exists():
             item_path.parent.mkdir(parents=True, exist_ok=True)
-        item_path.write_bytes(minimal_item)
+        item_path.write_bytes(item_bytes)
         items.append(item)
 
-    resp = run_place_objects_on_map([], items, clean_items=True)
+    resp = run_place_objects_on_map(item_paths.map_bytes, [], items, clean_items=True)
 
     os.chdir(_curdir)
     shutil.rmtree(tmpdir, ignore_errors=True)
@@ -246,6 +249,7 @@ class ComplexEncoder(json.JSONEncoder):
 
 # Dotnet commands
 def run_place_objects_on_map(
+    base_map_bytes: bytes,
     blocks: list[DotnetBlock] = [],
     items: list[DotnetItem] = [],
     # should_overwrite: bool = False,
@@ -259,8 +263,8 @@ def run_place_objects_on_map(
     _out_map_path = f'{base_name}.Map.Gbx'
     _populated_out_map_path = f"{base_name}_p.Map.Gbx"
     out_map_path = Path(_out_map_path)
-    out_map_path.write_bytes(Path(BASE_MAP_PATH).read_bytes())
-    overwrite = False
+    out_map_path.write_bytes(base_map_bytes)
+    overwrite = True
 
     cfg = DotnetPlaceObjectsOnMap(
             _out_map_path,
@@ -289,7 +293,8 @@ def run_place_objects_on_map(
 
     os.remove(config_path)
     os.remove(_out_map_path)
-    os.remove(_populated_out_map_path)
+    if not overwrite:
+        os.remove(_populated_out_map_path)
     return ret_bytes
 
 
