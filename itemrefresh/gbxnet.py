@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import time
 import zipfile
+from dataclasses import dataclass
 
 import requests
 
@@ -23,7 +24,14 @@ GBX_NET_EXE_NAME = "Blendermania_Dotnet_v0.0.5.exe"
 GBX_NET_EXE = "C:/Blendermania_Dotnet_v0.0.5.exe"
 GBX_NET_EXE_HASH = "532d5004fce948d6b46303f6e160eebdc11494df84a4ddd8c2c296c1e05d65b6"
 
-def generate_map_bytes(item_paths: list[str]):
+
+@dataclass
+class EmbedRequest:
+    item_filenames: list[str]
+    items: list[bytes]
+    map_bytes: bytes
+
+def generate_map_bytes(item_paths: EmbedRequest):
     ensure_map_base_downloaded()
     ensure_gbx_net_exe_downloaded()
     return run_map_generation(item_paths)
@@ -40,7 +48,7 @@ def ensure_gbx_net_exe_downloaded():
     zip_file = Path(GBX_NET_ZIP)
     save_url_to_file(GBX_NET_URL, zip_file)
     zf = zipfile.ZipFile(GBX_NET_ZIP, 'r')
-    zf.extract(GBX_NET_EXE_NAME, '/tmp/')
+    zf.extract(GBX_NET_EXE_NAME, 'c:/')
     exe_file = Path(GBX_NET_EXE)
     if not exe_file.is_file():
         raise Exception(f'extracted gbx exe but it doesn\'t exist!')
@@ -64,7 +72,7 @@ def save_url_to_file(url, f: Path):
 
 
 
-def run_map_generation(item_paths: list[str]) -> bytes:
+def run_map_generation(item_paths: EmbedRequest) -> bytes:
     tmpdir = Path(f'c:/tmp/mapgen/{random.randint(0, 10**10)}')
     if not tmpdir.exists():
         tmpdir.mkdir(parents=True, exist_ok=True)
@@ -72,7 +80,7 @@ def run_map_generation(item_paths: list[str]) -> bytes:
     os.chdir(tmpdir)
 
     items = []
-    for ip in item_paths:
+    for ip in item_paths.item_filenames:
         item = DotnetItem(ip, ip, DotnetVector3(
             random.random() * 48. * 32.,
             100,

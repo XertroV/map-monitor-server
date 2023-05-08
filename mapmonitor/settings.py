@@ -59,6 +59,7 @@ INSTALLED_APPS = [
 IS_WINDOWS = sys.platform.startswith('win32')
 if IS_WINDOWS:
     print(f"IS_WINDOWS: {IS_WINDOWS}")
+DATA_UPLOAD_MAX_MEMORY_SIZE = 1024*1024*8
 
 # if IS_WINDOWS:
 #     INSTALLED_APPS = [
