@@ -85,7 +85,7 @@ def save_url_to_file(url, f: Path):
             retries += 1
             continue
         else:
-            logging.info(f'saved file: {f.absolute}')
+            logging.info(f'saved file: {f.absolute()}')
             f.write_bytes(resp.content)
             break
     if (retries >= 10):
