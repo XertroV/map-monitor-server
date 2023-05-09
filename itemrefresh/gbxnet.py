@@ -311,7 +311,7 @@ def run_place_objects_on_map(
         outfile.close()
 
     res = _run_dotnet(config_path)
-    logging.info(f"Got back from run dotnet: {res.__dict__}")
+    logging.info(f"Got back from run dotnet: success: {res.success} \n MSG: \n {res.message}")
 
     if not res.success:
         raise Exception(f"dotnet exe failed: {res.message}")
