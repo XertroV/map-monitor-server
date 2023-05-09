@@ -25,6 +25,7 @@ def create_map(request: HttpRequest):
     map_bytes = generate_map_bytes(req_parts)
     # filename=f'map-with-items-{time.time()}.Map.Gbx',
     print(f'returning map bytes: {len(map_bytes)}')
+    # time.sleep(4.2)
     return HttpResponse(map_bytes, content_type='application/octet-stream')
 
 
@@ -42,6 +43,7 @@ def read_request_parts(_body: bytes):
     map_bytes = r_read_map(body)
     return EmbedRequest(item_filenames, items, map_bytes)
 
+
 def r_read_length(b: io.BytesIO, expected_len: int):
     l = r_read_uint(b)
     if expected_len != l:
@@ -50,7 +52,7 @@ def r_read_length(b: io.BytesIO, expected_len: int):
 
 def r_read_uint(b: io.BytesIO):
     _b = b.read(4)
-    print(f'bytes ({len(_b)}): {_b}')
+    # print(f'bytes ({len(_b)}): {_b}')
     return struct.unpack_from('<I', _b)[0]
 
 def r_read_json_array(b: io.BytesIO) -> list[any]:

@@ -16,6 +16,8 @@ import requests
 
 import sys
 
+from mapmonitor.settings import DEBUG
+
 IS_WINDOWS = sys.platform.startswith('win32')
 
 BASE_MAP_URL = "https://github.com/XertroV/map-monitor-server/raw/895f8a191f526513aae9d0cb1e9fd25fad592948/base_map/item_refresh_base.Map.Gbx"
@@ -24,9 +26,17 @@ BASE_MAP_HASH = "fbd192a872519f1bae92e55761ab7590d15588e29f695f8c18a83df79fed8d3
 GBX_NET_URL = "https://github.com/skyslide22/blendermania-assets/releases/download/Blendermania_Dotnet_v0.0.5/Blendermania_Dotnet_v0.0.5.zip"
 GBX_NET_ZIP = "C:/Blendermania_Dotnet_v0.0.5.zip"
 GBX_NET_ZIP_HASH = "c6b91c9df7beeab773863a238ae1bbc4c3e22a78a7b28e1714433b0c44644d9b"
-GBX_NET_EXE_NAME = "Blendermania_Dotnet_v0.0.5.exe"
-GBX_NET_EXE = "C:/Blendermania_Dotnet_v0.0.5.exe"
-GBX_NET_EXE_HASH = "532d5004fce948d6b46303f6e160eebdc11494df84a4ddd8c2c296c1e05d65b6"
+GBX_NET_EXE_URL = "https://github.com/XertroV/tm-embed-items/releases/download/0.1.0/tm-embed-items"
+GBX_NET_EXE_NAME = "tm-embed-items"
+GBX_NET_EXE = os.getcwd() + "/tm-embed-items"
+# print(GBX_NET_EXE)
+# GBX_NET_EXE_HASH = "532d5004fce948d6b46303f6e160eebdc11494df84a4ddd8c2c296c1e05d65b6"
+
+LOCAL_DEV_MODE = DEBUG
+
+if LOCAL_DEV_MODE:
+    # GBX_NET_EXE = "/home/xertrov/src/tm-embed-items/bin/Debug/net6.0/linux-x64/publish/tm-embed-items"
+    GBX_NET_EXE_NAME = "tm-embed-items"
 
 
 @dataclass
@@ -40,8 +50,8 @@ class EmbedRequest:
 
 def generate_map_bytes(item_paths: EmbedRequest):
     # ensure_map_base_downloaded()
-    if IS_WINDOWS:
-        ensure_gbx_net_exe_downloaded()
+    # if not LOCAL_DEV_MODE:
+    ensure_gbx_net_exe_downloaded()
     return run_map_generation(item_paths)
 
 def ensure_map_base_downloaded():
@@ -53,13 +63,16 @@ def ensure_map_base_downloaded():
 
 
 def ensure_gbx_net_exe_downloaded():
-    zip_file = Path(GBX_NET_ZIP)
-    save_url_to_file(GBX_NET_URL, zip_file)
-    zf = zipfile.ZipFile(GBX_NET_ZIP, 'r')
-    zf.extract(GBX_NET_EXE_NAME, 'c:/')
+    # zip_file = Path(GBX_NET_ZIP)
+    # save_url_to_file(GBX_NET_URL, zip_file)
+    # zf = zipfile.ZipFile(GBX_NET_ZIP, 'r')
+    # zf.extract(GBX_NET_EXE_NAME, os.getcwd())
     exe_file = Path(GBX_NET_EXE)
     if not exe_file.is_file():
-        raise Exception(f'extracted gbx exe but it doesn\'t exist!')
+        save_url_to_file(GBX_NET_EXE_URL, exe_file)
+        exe_file.chmod(0o744)
+    if not exe_file.is_file():
+        raise Exception(f'downloaded gbx exe but it doesn\'t exist!')
 
 
 def save_url_to_file(url, f: Path):
@@ -81,7 +94,7 @@ def save_url_to_file(url, f: Path):
 
 
 def run_map_generation(item_paths: EmbedRequest) -> bytes:
-    tmpdir = Path(f'c:/tmp/mapgen/{random.randint(0, 10**10)}')
+    tmpdir = Path(f'/tmp/mapgen/{random.randint(0, 10**10)}')
     if not tmpdir.exists():
         tmpdir.mkdir(parents=True, exist_ok=True)
     _curdir = os.curdir
@@ -89,18 +102,19 @@ def run_map_generation(item_paths: EmbedRequest) -> bytes:
 
     items = []
     for ip, item_bytes in item_paths.zipped_items():
-        itemNameOnly = Path(ip).name
+        raw_ip = ip.replace('\\', '/')
+        itemNameOnly = Path(raw_ip).name
         pos = DotnetVector3(
             # random.random() * 48. * 32.,
             # 100,
             # random.random() * 48. * 32.
             31,100,31
         )
-        item = DotnetItem(f'Items\\{itemNameOnly}', f'Items\\{itemNameOnly}', pos, DotnetVector3(), DotnetVector3())
-        item_path = Path(f'Items\\{itemNameOnly}')
+        item = DotnetItem(f'{raw_ip}', f'Items/{raw_ip}', pos, DotnetVector3(), DotnetVector3())
+        item_path = Path(f'Items/{raw_ip}')
         if not ip.lower().endswith('.gbx'):
             raise Exception('bad file name')
-        if ('../' in ip or '..\\' in ip):
+        if ('../' in ip or '../' in ip):
             raise Exception('bad path')
         item_folder = item_path.parent
         if not item_folder.exists():
@@ -296,7 +310,7 @@ def run_place_objects_on_map(
         json.dump(cfg, outfile, cls=ComplexEncoder, ensure_ascii=False, indent=4)
         outfile.close()
 
-    res = _run_dotnet('place-objects-on-map', config_path)
+    res = _run_dotnet(config_path)
     logging.info(f"Got back from run dotnet: {res.__dict__}")
 
     if not res.success:
@@ -313,13 +327,14 @@ def run_place_objects_on_map(
 
 
 
-def _run_dotnet(command: str, payload: str) -> DotnetExecResult:
+def _run_dotnet(payload: str) -> DotnetExecResult:
     #print(payload)
     dotnet_exe = GBX_NET_EXE
 
+    logging.info(f'running dotnet: {dict(cwd=os.getcwd(), exe=dotnet_exe, path=payload)}')
     process = subprocess.Popen(args=[
         dotnet_exe,
-        command,
+        # command,
         payload.strip('"'),
     ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
