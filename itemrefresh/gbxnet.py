@@ -303,11 +303,11 @@ def run_place_objects_on_map(
             clean_items,
             env,
         )
-    cfg_str = json.dumps(cfg, cls=ComplexEncoder, ensure_ascii=False, indent=4)
+    cfg_str = json.dumps(cfg, cls=ComplexEncoder, ensure_ascii=False)
     logging.info(f"run_place_objects_on_map {cfg_str}")
 
     with open(config_path, 'w+', encoding='utf-8') as outfile:
-        json.dump(cfg, outfile, cls=ComplexEncoder, ensure_ascii=False, indent=4)
+        outfile.write(cfg_str)
         outfile.close()
 
     res = _run_dotnet(config_path)
