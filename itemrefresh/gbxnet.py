@@ -26,16 +26,16 @@ BASE_MAP_HASH = "fbd192a872519f1bae92e55761ab7590d15588e29f695f8c18a83df79fed8d3
 # GBX_NET_URL = "https://github.com/skyslide22/blendermania-assets/releases/download/Blendermania_Dotnet_v0.0.5/Blendermania_Dotnet_v0.0.5.zip"
 # GBX_NET_ZIP = "C:/Blendermania_Dotnet_v0.0.5.zip"
 # GBX_NET_ZIP_HASH = "c6b91c9df7beeab773863a238ae1bbc4c3e22a78a7b28e1714433b0c44644d9b"
-GBX_NET_EXE_URL = "https://github.com/XertroV/tm-embed-items/releases/download/0.1.0/tm-embed-items"
-GBX_NET_EXE_NAME = "tm-embed-items"
-GBX_NET_EXE = os.getcwd() + "/tm-embed-items"
+GBX_NET_EXE_URL = "https://github.com/XertroV/tm-embed-items/releases/download/0.1.2/tm-embed-items"
+GBX_NET_EXE_NAME = "tm-embed-items-0.1.2"
+GBX_NET_EXE = os.getcwd() + "/" + GBX_NET_EXE_NAME
 # print(GBX_NET_EXE)
 # GBX_NET_EXE_HASH = "532d5004fce948d6b46303f6e160eebdc11494df84a4ddd8c2c296c1e05d65b6"
 
 LOCAL_DEV_MODE = DEBUG
 
 if LOCAL_DEV_MODE:
-    # GBX_NET_EXE = "/home/xertrov/src/tm-embed-items/bin/Debug/net6.0/linux-x64/publish/tm-embed-items"
+    GBX_NET_EXE = "/home/xertrov/src/tm-embed-items/bin/Debug/net6.0/linux-x64/publish/tm-embed-items"
     GBX_NET_EXE_NAME = "tm-embed-items"
 
 
