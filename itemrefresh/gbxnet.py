@@ -313,7 +313,7 @@ def run_place_objects_on_map(
     res = _run_dotnet(config_path)
     logging.info(f"Got back from run dotnet: success: {res.success} \n MSG: \n {res.message}")
 
-    if not res.success:
+    if not res.success or "Error:" in res.message:
         raise Exception(f"dotnet exe failed: {res.message}")
     print([config_path, _out_map_path, _populated_out_map_path])
     ret_bytes = Path(_out_map_path if overwrite else _populated_out_map_path).read_bytes()
