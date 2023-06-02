@@ -1,7 +1,5 @@
-from datetime import timezone
 import time
 from django.db import models
-from django.utils import timezone
 
 _MAP_MONITOR_PLUGIN_ID = 308
 
@@ -16,6 +14,35 @@ class MapTotalPlayers(models.Model):
     last_update_started_ts = models.IntegerField(default=0)
     def __str__(self):
         return f"{self.uid} / nb:{self.nb_players}"
+
+
+class Challenge(models.Model):
+    challenge_id: int = models.IntegerField('challenge id', db_index=True, unique=True)
+    uid: str = models.CharField(max_length=64, db_index=True, unique=True)
+    name: str = models.CharField(max_length=64, db_index=True)
+    leaderboard_id = models.IntegerField('leaderboardId')
+    start_ts = models.IntegerField('start timestamp', db_index=True)
+    end_ts = models.IntegerField('end timestamp', db_index=True)
+    created_ts = models.IntegerField('created timestamp', default=time.time)
+    updated_ts = models.IntegerField('updated timestamp', default=time.time)
+
+
+class CotdQualiTimes(models.Model):
+    challenge_id: int = models.IntegerField('challenge id', db_index=True)
+    uid: str = models.CharField(max_length=32, db_index=True)
+    length: int = models.IntegerField('length')
+    offset: int = models.IntegerField('offset')
+    json_payload: str = models.TextField('quali json sz', default="[]")
+    created_ts = models.IntegerField('created timestamp', default=time.time)
+    updated_ts = models.IntegerField('updated timestamp', default=time.time)
+    last_update_started_ts = models.IntegerField(default=0)
+    def __str__(self):
+        return f"Quali Times: {self.challenge_id} / {self.uid} / l:{self.length}/o:{self.offset}"
+    class Meta:
+        unique_together = [('challenge_id', 'uid', 'length', 'offset')]
+
+
+
 
 class AuthToken(models.Model):
     token_for: str = models.CharField(max_length=64, db_index=True, unique=True)

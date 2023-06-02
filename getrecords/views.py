@@ -5,7 +5,7 @@ import logging
 import time
 from typing import Coroutine, Optional
 from django.shortcuts import render, get_object_or_404
-from django.http import JsonResponse, HttpResponseNotAllowed, HttpRequest, HttpResponseForbidden, HttpResponse
+from django.http import JsonResponse, HttpResponseNotAllowed, HttpRequest, HttpResponseForbidden, HttpResponse, HttpResponseNotFound
 from django.core import serializers
 from django.db.models import Model
 from django.utils import timezone
@@ -15,7 +15,7 @@ from getrecords.openplanet import ARCHIVIST_PLUGIN_ID, MAP_MONITOR_PLUGIN_ID, To
 from getrecords.s3 import upload_ghost_to_s3
 from getrecords.utils import sha_256_b_ts
 
-from .models import Ghost, MapTotalPlayers, Track, TrackStats, User, UserStats, UserTrackPlay
+from .models import Challenge, CotdQualiTimes, Ghost, MapTotalPlayers, Track, TrackStats, User, UserStats, UserTrackPlay
 from .nadeoapi import LOCAL_DEV_MODE, nadeo_get_nb_players_for_map, nadeo_get_surround_for_map
 import getrecords.nadeoapi as nadeoapi
 
@@ -23,7 +23,8 @@ import getrecords.nadeoapi as nadeoapi
 NB_PLAYERS_CACHE_SECONDS = 5 * 60
 # 8 hrs
 NB_PLAYERS_MAX_CACHE_SECONDS = 8 * 60 * 60
-
+# 10 sec
+QUALI_TIMES_CACHE_SECONDS = 10
 
 def model_to_dict(m: Model):
     return serializers.serialize('python', [m])[0]['fields']
@@ -38,6 +39,13 @@ def json_resp_mtp(m: MapTotalPlayers):
     if (m.nb_players > 10000):
         resp['refresh_in'] = NB_PLAYERS_MAX_CACHE_SECONDS
     # print(f"Response: {json.dumps(resp)}")
+    return JsonResponse(resp)
+
+def json_resp_q_times(qt: CotdQualiTimes, ch: Challenge):
+    resp = model_to_dict(qt)
+    resp['json_payload'] = json.loads(resp['json_payload'])
+    resp['refresh_in'] = QUALI_TIMES_CACHE_SECONDS
+    resp['challenge'] = model_to_dict(ch)
     return JsonResponse(resp)
 
 
@@ -76,6 +84,62 @@ def requires_openplanet_auth(plugin_id: int):
 # Create your views here.
 def index(request):
     return JsonResponse(dict(test=True))
+
+
+def get_cotd_leaderboards(request, challenge_id: int, map_uid: str):
+    if request.method != "GET": return HttpResponseNotAllowed(['GET'])
+    # return CallCompApiPath("/api/challenges/" + challengeid + "/records/maps/" + mapid + "?" + LengthAndOffset(length, offset));
+    challenge_res = Challenge.objects.filter(challenge_id=challenge_id)
+    challenge = None
+    if (challenge_res.count() > 0):
+        challenge = challenge_res[0]
+    else:
+        challenge = get_and_cache_challenge(challenge_id)
+    if challenge is None:
+        return HttpResponseNotFound(f"Could not find challenge with id: {challenge_id}")
+
+    length = int(request.GET.get('length', '10'))
+    offset = int(request.GET.get('offset', '0'))
+
+    q_times = CotdQualiTimes.objects.filter(uid=map_uid, challenge_id=challenge_id, length=length, offset=offset).first()
+
+    if q_times is None:
+        q_times = CotdQualiTimes(uid=map_uid, challenge_id=challenge_id, length=length, offset=offset)
+    else:
+        delta = time.time() - q_times.updated_ts
+        in_prog = q_times.last_update_started_ts > q_times.updated_ts and (time.time() - q_times.last_update_started_ts < 60)
+        challenge_over = q_times.updated_ts > challenge.end_ts + QUALI_TIMES_CACHE_SECONDS * 3
+        if not LOCAL_DEV_MODE and (challenge_over or in_prog or delta < QUALI_TIMES_CACHE_SECONDS):
+            return json_resp_q_times(q_times, challenge)
+
+    logging.info(f"Updating quali_times: {q_times}")
+
+    q_times.last_update_started_ts = time.time()
+    q_times.save()
+    records: list[dict] = run_async(nadeoapi.get_challenge_records(challenge_id, map_uid, length, offset))
+    for rec in records:
+        del rec['uid']
+    q_times.json_payload = json.dumps(records)
+    q_times.updated_ts = time.time()
+    q_times.save()
+    return json_resp_q_times(q_times, challenge)
+
+
+
+def get_and_cache_challenge(_id: int):
+    logging.info(f"Getting challnge: {_id}")
+    resp = run_async(nadeoapi.get_challenge(_id))
+    logging.info(f"Got challenge response: {resp}")
+    if resp is None:
+        return None
+    challenge = Challenge(challenge_id=_id, uid=resp['uid'], name=resp['name'], leaderboard_id=resp['leaderboardId'],
+                          start_ts = resp['startDate'], end_ts=resp['endDate'])
+    try:
+        challenge.save()
+    except Exception as e:
+        logging.error(f"Failed to save challenge: {e}, returning it anyway")
+    return challenge
+
 
 
 def get_nb_players(request, map_uid):
@@ -127,11 +191,11 @@ def get_track_mb_create(uid: str) -> Track:
         track_info = run_async(nadeoapi.core_get_maps_by_uid([uid]))
         # logging.warn(f"track_info: {track_info}")
         if track_info is list and len(track_info) > 0:
-            track_info: dict = track_info[0]
-            track.map_id = track_info.get('mapId', None)
-            track.name = track_info.get('name', None)
-            track.url = track_info.get('fileUrl', None)
-            track.thumbnail_url = track_info.get('thumbnailUrl', None)
+            track_info2: dict = track_info[0]
+            track.map_id = track_info2.get('mapId', None)
+            track.name = track_info2.get('name', None)
+            track.url = track_info2.get('fileUrl', None)
+            track.thumbnail_url = track_info2.get('thumbnailUrl', None)
         track.save()
     return track
 

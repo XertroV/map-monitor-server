@@ -78,6 +78,7 @@ async def get_token_for_audience(audience: str):
 
 NadeoCoreToken: NadeoToken | None = None
 NadeoLiveToken: NadeoToken | None = None
+NadeoClubToken: NadeoToken | None = None
 
 
 async def await_nadeo_services_initialized():
@@ -85,10 +86,12 @@ async def await_nadeo_services_initialized():
         asyncio.create_task(run_nadeo_services_auth())
     while NadeoLiveToken is None:
         await asyncio.sleep(.05)
+    while NadeoClubToken is None:
+        await asyncio.sleep(.05)
 
 
 def all_tokens() -> list[NadeoToken | None]:
-    return [NadeoLiveToken, NadeoCoreToken]
+    return [NadeoLiveToken, NadeoCoreToken, NadeoClubToken]
 
 
 async def reacquire_token(for_name: str, force=False) -> NadeoToken:
@@ -100,7 +103,7 @@ async def reacquire_token(for_name: str, force=False) -> NadeoToken:
 
     if force or check_refresh_after(tmpNadeoToken):
         tmpNadeoToken = await get_token_for_audience(for_name)
-        logging.warn(f"Got live token: {tmpNadeoToken is not None}")
+        logging.warn(f"Got {for_name} token: {tmpNadeoToken is not None}")
         await AuthToken.objects.aupdate_or_create(
             token_for=for_name,
             defaults=dict(access_token=tmpNadeoToken.accessToken, refresh_token=tmpNadeoToken.refreshToken,
@@ -111,10 +114,11 @@ async def reacquire_token(for_name: str, force=False) -> NadeoToken:
 
 
 async def reacquire_all_tokens(force=False):
-    global NadeoCoreToken, NadeoLiveToken
+    global NadeoCoreToken, NadeoLiveToken, NadeoClubToken
 
     NadeoCoreToken = await reacquire_token('NadeoServices')
     NadeoLiveToken = await reacquire_token('NadeoLiveServices')
+    NadeoClubToken = await reacquire_token('NadeoClubServices')
 
     # # NadeoCoreToken = await get_token_for_audience(ubi, 'NadeoServices')
     # # logging.warn(f"Got core token: {NadeoCoreToken is not None}")
@@ -167,6 +171,8 @@ def get_token_for(audience):
         return NadeoCoreToken.accessToken
     if audience == "NadeoLiveServices" and NadeoLiveToken is not None:
         return NadeoLiveToken.accessToken
+    if audience == "NadeoClubServices" and NadeoClubToken is not None:
+        return NadeoClubToken.accessToken
     raise Exception(f'cannot get token for audience: {audience}')
 
 def get_nadeo_session(audience: str):
@@ -180,6 +186,9 @@ def get_core_session():
 def get_live_session():
     return get_nadeo_session('NadeoLiveServices')
 
+def get_club_session():
+    return get_nadeo_session('NadeoClubServices')
+
 
 TOTD_MAP_LIST = "https://live-services.trackmania.nadeo.live/api/token/campaign/month?length=100&offset=0"
 
@@ -190,6 +199,30 @@ async def get_totd_maps():
             if resp.status == 200:
                 return await resp.json()
             logging.warn(f"get totd maps got status: {resp.status}, {await resp.text()}")
+            return None
+
+GET_CHALLENGE_URL = "https://competition.trackmania.nadeo.club/api/challenges/{id}"
+
+async def get_challenge(_id: int):
+    url = GET_CHALLENGE_URL.format(id=_id)
+    await await_nadeo_services_initialized()
+    async with get_club_session() as session:
+        async with await session.get(url) as resp:
+            if resp.status == 200:
+                return await resp.json()
+            logging.warn(f"get challenge with id {_id} failed: {resp.status}, {await resp.text()}")
+            return None
+
+GET_CHALLENGE_RECORDS_URL = "https://competition.trackmania.nadeo.club/api/challenges/{id}/records/maps/{map_uid}?length={length}&offset={offset}"
+
+async def get_challenge_records(_id: int, map_uid: str, length: int = 10, offset: int = 0):
+    url = GET_CHALLENGE_RECORDS_URL.format(id=_id, map_uid=map_uid, length=length, offset=offset)
+    await await_nadeo_services_initialized()
+    async with get_club_session() as session:
+        async with await session.get(url) as resp:
+            if resp.status == 200:
+                return await resp.json()
+            logging.warn(f"get challenge records with id {_id}, map: {map_uid} failed: {resp.status}, {await resp.text()}")
             return None
 
 
