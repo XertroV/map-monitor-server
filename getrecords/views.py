@@ -41,10 +41,10 @@ def json_resp_mtp(m: MapTotalPlayers):
     # print(f"Response: {json.dumps(resp)}")
     return JsonResponse(resp)
 
-def json_resp_q_times(qt: CotdQualiTimes, ch: Challenge):
+def json_resp_q_times(qt: CotdQualiTimes, ch: Challenge, refresh_in=QUALI_TIMES_CACHE_SECONDS):
     resp = model_to_dict(qt)
     resp['json_payload'] = json.loads(resp['json_payload'])
-    resp['refresh_in'] = QUALI_TIMES_CACHE_SECONDS
+    resp['refresh_in'] = refresh_in
     resp['challenge'] = model_to_dict(ch)
     return JsonResponse(resp)
 
@@ -110,7 +110,7 @@ def get_cotd_leaderboards(request, challenge_id: int, map_uid: str):
         in_prog = q_times.last_update_started_ts > q_times.updated_ts and (time.time() - q_times.last_update_started_ts < 60)
         challenge_over = q_times.updated_ts > challenge.end_ts + QUALI_TIMES_CACHE_SECONDS * 3
         if not LOCAL_DEV_MODE and (challenge_over or in_prog or delta < QUALI_TIMES_CACHE_SECONDS):
-            return json_resp_q_times(q_times, challenge)
+            return json_resp_q_times(q_times, challenge, refresh_in=(999999 if challenge_over else QUALI_TIMES_CACHE_SECONDS))
 
     logging.info(f"Updating quali_times: {q_times}")
 
