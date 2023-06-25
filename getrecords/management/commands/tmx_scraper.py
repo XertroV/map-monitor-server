@@ -58,8 +58,8 @@ async def run_tmx_scraper(state: TmxMapScrapeState):
 
 async def scrape_range(state: TmxMapScrapeState, latest: int):
     while state.LastScraped < latest:
-        # max 50 entries, but urls fail with too many
-        to_scrape = list(range(state.LastScraped + 1, latest + 1)[:40])
+        # max 50 entries, but urls fail with too many (40 * 6 digits long breaks, but is okay with 5 digits)
+        to_scrape = list(range(state.LastScraped + 1, latest + 1)[:30])
         await update_maps_from_tmx(to_scrape)
         state.LastScraped = to_scrape[-1]
         await state.asave()

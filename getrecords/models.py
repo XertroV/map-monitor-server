@@ -93,6 +93,11 @@ class TmxMap(models.Model):
     MapType: str | None = models.CharField(max_length=32, null=True)
     WasTOTD: bool = models.BooleanField(default=False)
 
+    TrackValue: int = models.IntegerField(default=0)
+    AwardCount: int = models.IntegerField(default=0)
+    ImageCount: int = models.IntegerField(default=0)
+    IsMP4: bool = models.BooleanField(default=False)
+
     def __init__(self, *args, LengthName="2 m 30 s", LengthSecs=None, **kwargs):
         if LengthSecs is None:
             LengthSecs = 0
@@ -116,7 +121,8 @@ class TmxMap(models.Model):
             kwargs['UpdateTimestamp'] = tmx_date_to_ts(kwargs['UpdatedAt'])
             kwargs['DifficultyInt'] = difficulty_to_int(kwargs["DifficultyName"])
 
-            remove_keys = ['DisplayCost', 'Lightmap', 'UnlimiterRequired', 'ReplayWRID', 'ReplayWRTime', 'ReplayWRUserID', 'ReplayWRUsername', 'TrackValue', 'MappackID', 'HasGhostBlocks', 'EmbeddedObjectsCount', 'EmbeddedItemsSize', 'AuthorCount', 'IsMP4', 'SizeWarning', 'AwardCount', 'CommentCount', 'ReplayCount', 'ImageCount', 'VideoCount']
+            remove_keys = ['DisplayCost', 'Lightmap', 'UnlimiterRequired', 'ReplayWRID', 'ReplayWRTime', 'ReplayWRUserID', 'ReplayWRUsername', 'MappackID', 'HasGhostBlocks', 'EmbeddedObjectsCount', 'EmbeddedItemsSize', 'AuthorCount', 'SizeWarning', 'CommentCount', 'ReplayCount', 'VideoCount']            
+            
             for k in remove_keys:
                 if k in kwargs:
                     del kwargs[k]
