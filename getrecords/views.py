@@ -358,6 +358,15 @@ def tmx_next_map(request, map_id: int):
         return JsonResponse(dict(next=1))
     return JsonResponse(dict(next=next_map.TrackID))
 
+def tmx_prev_map(request, map_id: int):
+    prev_map = TmxMap.objects.filter(TrackID__lt=map_id).order_by('-TrackID').first()
+    if prev_map is None:
+        return JsonResponse(dict(prev=1))
+    return JsonResponse(dict(prev=prev_map.TrackID))
+
+def tmx_count_at_map(request, map_id: int):
+    return JsonResponse(dict(maps_so_far=TmxMap.objects.filter(TrackID__lt=map_id).count()))
+
 
 
 class JsonErrorResponse(JsonResponse):

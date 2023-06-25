@@ -16,6 +16,8 @@ urlpatterns = [
     path(f'register/token/{ARCHIVIST_PLUGIN_ID}', views.register_token_archivist, name='register-token-archivist'),
     path(f'register/token/{MAP_MONITOR_PLUGIN_ID}', views.register_token_mm, name='register-token-mm'),
     path(f'tmx/<int:map_id>/next', views.tmx_next_map),
+    path(f'tmx/<int:map_id>/prev', views.tmx_prev_map),
+    path(f'tmx/<int:map_id>/count_prior', views.tmx_count_at_map),
     path(f'mapsearch2/search', views.tmx_compat_mapsearch2, name='tmx_compat_mapsearch2'),
     path(f'maps/download/<int:mapid>', views.map_dl, name='map_dl'),
     path(f'api/maps/get_map_info/multi/<str:mapids>', views.tmx_maps_get_map_info_multi),
