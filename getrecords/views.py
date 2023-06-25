@@ -341,6 +341,12 @@ def tmx_compat_mapsearch2(request):
 def map_dl(request, mapid: int):
     return HttpResponsePermanentRedirect(f"https://trackmania.exchange/maps/download/{mapid}")
 
+def tmx_api_tags_gettags(request):
+    return HttpResponsePermanentRedirect(f"https://trackmania.exchange/api/tags/gettags")
+
+def tmx_maps_get_map_info_multi(request, mapids: str):
+    return HttpResponseRedirect(f"https://trackmania.exchange/api/maps/get_map_info/multi/{mapids}")
+
 
 
 

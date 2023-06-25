@@ -17,4 +17,6 @@ urlpatterns = [
     path(f'register/token/{MAP_MONITOR_PLUGIN_ID}', views.register_token_mm, name='register-token-mm'),
     path(f'mapsearch2/search', views.tmx_compat_mapsearch2, name='tmx_compat_mapsearch2'),
     path(f'maps/download/<int:mapid>', views.map_dl, name='map_dl'),
+    path(f'api/maps/get_map_info/multi/<str:mapids>', views.tmx_maps_get_map_info_multi),
+    path(f'api/tags/gettags', views.tmx_api_tags_gettags),
 ]
