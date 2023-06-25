@@ -5,7 +5,7 @@ import logging
 import time
 from typing import Coroutine, Optional
 from django.shortcuts import render, get_object_or_404
-from django.http import JsonResponse, HttpResponseNotAllowed, HttpRequest, HttpResponseForbidden, HttpResponse, HttpResponseNotFound, HttpResponseBadRequest
+from django.http import HttpResponseRedirect, JsonResponse, HttpResponseNotAllowed, HttpRequest, HttpResponseForbidden, HttpResponse, HttpResponseNotFound, HttpResponseBadRequest, HttpResponsePermanentRedirect
 from django.core import serializers
 from django.db.models import Model
 from django.utils import timezone
@@ -338,7 +338,8 @@ def tmx_compat_mapsearch2(request):
 
 
 
-
+def map_dl(request, mapid: int):
+    return HttpResponsePermanentRedirect(f"https://trackmania.exchange/maps/download/{mapid}")
 
 
 
