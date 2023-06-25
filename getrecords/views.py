@@ -352,6 +352,14 @@ def tmx_maps_get_map_info_multi(request, mapids: str):
 
 
 
+def tmx_next_map(request, map_id: int):
+    next_map = TmxMap.objects.filter(TrackID__gt=map_id).order_by('TrackID').first()
+    if next_map is None:
+        return JsonResponse(dict(next=1))
+    return JsonResponse(dict(next=next_map.TrackID))
+
+
+
 class JsonErrorResponse(JsonResponse):
     def __init__(self, *args, status_code=500, **kwargs):
         super().__init__(*args, **kwargs)
