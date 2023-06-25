@@ -63,7 +63,8 @@ class TmxMap(models.Model):
     ExeBuild: str = models.CharField(max_length=32, db_index=True)
     Mood: str = models.CharField(max_length=32)
     ModName: str | None = models.CharField(max_length=128, null=True)
-    AuthorTime: int = models.IntegerField()
+    # this really shouldn't be null, but is on 83259
+    AuthorTime: int = models.IntegerField(null=True)
     ParserVersion: int = models.IntegerField()
     UploadedAt: str = models.CharField(max_length=32)
     UpdatedAt: str = models.CharField(max_length=32)
