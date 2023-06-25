@@ -108,7 +108,7 @@ def get_cotd_leaderboards(request, challenge_id: int, map_uid: str):
     else:
         delta = time.time() - q_times.updated_ts
         in_prog = q_times.last_update_started_ts > q_times.updated_ts and (time.time() - q_times.last_update_started_ts < 60)
-        challenge_over = q_times.updated_ts > challenge.end_ts + QUALI_TIMES_CACHE_SECONDS * 3
+        challenge_over = q_times.updated_ts > (challenge.end_ts + QUALI_TIMES_CACHE_SECONDS * 3)
         if not LOCAL_DEV_MODE and (challenge_over or in_prog or delta < QUALI_TIMES_CACHE_SECONDS):
             return json_resp_q_times(q_times, challenge, refresh_in=(999999 if challenge_over else QUALI_TIMES_CACHE_SECONDS))
 

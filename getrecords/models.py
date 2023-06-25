@@ -1,6 +1,8 @@
 import time
 from django.db import models
 
+from getrecords.tmx_maps import *
+
 _MAP_MONITOR_PLUGIN_ID = 308
 
 # Create your models here.
@@ -42,6 +44,82 @@ class CotdQualiTimes(models.Model):
         unique_together = [('challenge_id', 'uid', 'length', 'offset')]
 
 
+LONG_MAP_SECS = 315
+
+class TmxMapScrapeState(models.Model):
+    Name: str = models.CharField(max_length=16)
+    LastScraped: int = models.IntegerField()
+
+class TmxMap(models.Model):
+    TrackID: int = models.IntegerField(db_index=True)
+    UserID: int = models.IntegerField(db_index=True)
+    Username: str = models.CharField(max_length=32, db_index=True)
+    AuthorLogin: str = models.CharField(max_length=64, db_index=True)
+    Name: str = models.CharField(max_length=128)
+    GbxMapName: str = models.CharField(max_length=128)
+    TrackUID: str = models.CharField(max_length=32, db_index=True)
+    TitlePack: str = models.CharField(max_length=64, db_index=True)
+    ExeVersion: str = models.CharField(max_length=32, db_index=True)
+    ExeBuild: str = models.CharField(max_length=32, db_index=True)
+    Mood: str = models.CharField(max_length=32)
+    ModName: str | None = models.CharField(max_length=128, null=True)
+    AuthorTime: int = models.IntegerField()
+    ParserVersion: int = models.IntegerField()
+    UploadedAt: str = models.CharField(max_length=32)
+    UpdatedAt: str = models.CharField(max_length=32)
+    UploadTimestamp: float = models.FloatField()
+    UpdateTimestamp: float = models.FloatField()
+    Tags: str | None = models.CharField(max_length=32, null=True)
+    TypeName: str = models.CharField(max_length=32)
+    StyleName: str | None = models.CharField(max_length=32, db_index=True, null=True)
+    RouteName: str = models.CharField(max_length=32)
+    LengthName: str = models.CharField(max_length=32)
+    LengthSecs: int = models.IntegerField(db_index=True)
+    LengthEnum: int = models.IntegerField()
+    DifficultyName: str = models.CharField(max_length=32)
+    DifficultyInt: int | None = models.IntegerField(null=True)
+    Laps: int = models.IntegerField()
+    Comments: str = models.TextField()
+    Downloadable: bool = models.BooleanField()
+    Unlisted: bool = models.BooleanField()
+    Unreleased: bool = models.BooleanField()
+    RatingVoteCount: int = models.IntegerField()
+    RatingVoteAverage: float = models.FloatField()
+    VehicleName: str = models.CharField(max_length=32)
+    EnvironmentName: str = models.CharField(max_length=32)
+    HasScreenshot: bool = models.BooleanField()
+    HasThumbnail: bool = models.BooleanField()
+    MapType: str | None = models.CharField(max_length=32, null=True)
+    WasTOTD: bool = models.BooleanField(default=False)
+
+    def __init__(self, *args, LengthName="2 m 30 s", LengthSecs=None, **kwargs):
+        if LengthSecs is None:
+            LengthSecs = 0
+            # can be in formats: "Long", "2 m 30 s", "1 min", "2 min", "15 secs"
+            if LengthName == "Long":
+                LengthSecs = LONG_MAP_SECS
+            elif " m " in LengthName:
+                _mins, rest = LengthName.split(" m ")
+                mins_s = int(_mins) * 60
+                secs = int(rest.split(" s")[0])
+                LengthSecs = mins_s + secs
+            elif " min" in LengthName:
+                LengthSecs = 60 * int(LengthName.split(" min")[0])
+            elif " secs" in LengthName:
+                LengthSecs = int(LengthName.split(" secs")[0])
+            else:
+                raise Exception(f"Unknown LengthName format; {LengthName}")
+        kwargs['LengthEnum'] = length_secs_to_enum(LengthSecs)
+        kwargs['UploadTimestamp'] = tmx_date_to_ts(kwargs['UploadedAt'])
+        kwargs['UpdateTimestamp'] = tmx_date_to_ts(kwargs['UpdatedAt'])
+        kwargs['DifficultyInt'] = difficulty_to_int(kwargs["DifficultyName"])
+
+        remove_keys = ['DisplayCost', 'Lightmap', 'UnlimiterRequired', 'ReplayWRID', 'ReplayWRTime', 'ReplayWRUserID', 'ReplayWRUsername', 'TrackValue', 'MappackID', 'HasGhostBlocks', 'EmbeddedObjectsCount', 'EmbeddedItemsSize', 'AuthorCount', 'IsMP4', 'SizeWarning', 'AwardCount', 'CommentCount', 'ReplayCount', 'ImageCount', 'VideoCount']
+        for k in remove_keys:
+            if k in kwargs:
+                del kwargs[k]
+
+        super().__init__(*args, LengthSecs=LengthSecs, LengthName=LengthName, **kwargs)
 
 
 class AuthToken(models.Model):

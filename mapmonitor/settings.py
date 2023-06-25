@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     # 'django.contrib.staticfiles',
     'django_extensions',
+    # 'workers',
 ]
 
 IS_WINDOWS = sys.platform.startswith('win32')
