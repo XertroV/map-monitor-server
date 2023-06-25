@@ -58,11 +58,12 @@ async def run_tmx_scraper(state: TmxMapScrapeState):
 
 async def scrape_range(state: TmxMapScrapeState, latest: int):
     while state.LastScraped < latest:
-        # max 50 entries
-        to_scrape = list(range(state.LastScraped + 1, latest + 1)[:48])
+        # max 50 entries, but urls fail with too many
+        to_scrape = list(range(state.LastScraped + 1, latest + 1)[:40])
         await update_maps_from_tmx(to_scrape)
         state.LastScraped = to_scrape[-1]
         await state.asave()
+        logging.info(f"state.LastScraped: {state.LastScraped}")
 
 async def get_latest_map_id() -> int:
     async with get_session() as session:
@@ -71,22 +72,21 @@ async def get_latest_map_id() -> int:
                 j = await resp.json()
                 return j['results'][0]['TrackID']
             else:
-                logging.warning(f"Could not get latest maps: {resp.status} code")
+                raise Exception(f"Could not get latest maps: {resp.status} code")
 
 async def update_maps_from_tmx(tids_or_uids: list[int | str]):
     tids_str = ','.join(map(str, tids_or_uids))
     async with get_session() as session:
         try:
+
             async with session.get(f"https://trackmania.exchange/api/maps/get_map_info/multi/{tids_str}", timeout=10.0) as resp:
                 if resp.status == 200:
                     await _add_maps_from_json(dict(results=await resp.json()), False)
                 else:
-                    logging.warning(f"Could not get map infos: {resp.status} code.")
                     print(f"RETRY ME: {tids_str}")
-                    return update_maps_from_tmx(tids_or_uids)
+                    raise Exception(f"Could not get map infos: {resp.status} code.")
         except asyncio.TimeoutError as e:
-            logging.warning(f"TMX timeout for get map infos")
-            return update_maps_from_tmx(tids_or_uids)
+            raise Exception(f"TMX timeout for get map infos")
 
 
 
