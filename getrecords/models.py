@@ -57,7 +57,7 @@ class TmxMap(models.Model):
     AuthorLogin: str = models.CharField(max_length=64, db_index=True)
     Name: str = models.CharField(max_length=128)
     GbxMapName: str = models.CharField(max_length=128)
-    TrackUID: str = models.CharField(max_length=32, db_index=True)
+    TrackUID: str = models.CharField(max_length=32, db_index=True, null=True)
     TitlePack: str = models.CharField(max_length=64, db_index=True)
     ExeVersion: str = models.CharField(max_length=32, db_index=True)
     ExeBuild: str = models.CharField(max_length=32, db_index=True)
@@ -109,17 +109,21 @@ class TmxMap(models.Model):
                 LengthSecs = int(LengthName.split(" secs")[0])
             else:
                 raise Exception(f"Unknown LengthName format; {LengthName}")
-        kwargs['LengthEnum'] = length_secs_to_enum(LengthSecs)
-        kwargs['UploadTimestamp'] = tmx_date_to_ts(kwargs['UploadedAt'])
-        kwargs['UpdateTimestamp'] = tmx_date_to_ts(kwargs['UpdatedAt'])
-        kwargs['DifficultyInt'] = difficulty_to_int(kwargs["DifficultyName"])
+        if len(kwargs) > 0:
+            kwargs['LengthEnum'] = length_secs_to_enum(LengthSecs)
+            kwargs['UploadTimestamp'] = tmx_date_to_ts(kwargs['UploadedAt'])
+            kwargs['UpdateTimestamp'] = tmx_date_to_ts(kwargs['UpdatedAt'])
+            kwargs['DifficultyInt'] = difficulty_to_int(kwargs["DifficultyName"])
 
-        remove_keys = ['DisplayCost', 'Lightmap', 'UnlimiterRequired', 'ReplayWRID', 'ReplayWRTime', 'ReplayWRUserID', 'ReplayWRUsername', 'TrackValue', 'MappackID', 'HasGhostBlocks', 'EmbeddedObjectsCount', 'EmbeddedItemsSize', 'AuthorCount', 'IsMP4', 'SizeWarning', 'AwardCount', 'CommentCount', 'ReplayCount', 'ImageCount', 'VideoCount']
-        for k in remove_keys:
-            if k in kwargs:
-                del kwargs[k]
+            remove_keys = ['DisplayCost', 'Lightmap', 'UnlimiterRequired', 'ReplayWRID', 'ReplayWRTime', 'ReplayWRUserID', 'ReplayWRUsername', 'TrackValue', 'MappackID', 'HasGhostBlocks', 'EmbeddedObjectsCount', 'EmbeddedItemsSize', 'AuthorCount', 'IsMP4', 'SizeWarning', 'AwardCount', 'CommentCount', 'ReplayCount', 'ImageCount', 'VideoCount']
+            for k in remove_keys:
+                if k in kwargs:
+                    del kwargs[k]
 
-        super().__init__(*args, LengthSecs=LengthSecs, LengthName=LengthName, **kwargs)
+            kwargs['LengthSecs'] = LengthSecs
+            kwargs['LengthName'] = LengthName
+
+        super().__init__(*args, **kwargs)
 
 
 class AuthToken(models.Model):

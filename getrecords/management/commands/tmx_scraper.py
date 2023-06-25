@@ -93,8 +93,7 @@ async def update_maps_from_tmx(tids_or_uids: list[int | str]):
 
 async def _add_maps_from_json(j: dict, add_to_random_maps = True, log_replacement = True):
     if 'results' not in j:
-        logging.warning(f"Response didn't contain .results")
-        return
+        raise Exception(f"Response didn't contain .results")
     maps_j = j['results']
     track_ids = list()
     for map_j in maps_j:
@@ -110,19 +109,3 @@ async def _add_maps_from_json(j: dict, add_to_random_maps = True, log_replacemen
             raise e
         # logging.info(f"Saved tmx map: {track_id}")
     logging.info(f"Saved tmx maps: {track_ids}")
-        # map_in_db = await Map.find_one(Eq(Map.TrackID, track_id))
-        # if map_in_db is not None:
-        #     _map.id = map_in_db.id
-        #     await _map.replace()
-        #     if log_replacement:
-        #         logging.info(f"Replacing map in db: {_map.TrackID}")
-        # else:
-        #     await _map.save()  # using insert_many later doesn't populate .id
-        # if add_to_random_maps:
-        #     fresh_random_maps.append(_map)
-        # maps_to_cache.append(_map)
-        # added_c += 1
-        # if track_id in known_maps:
-        #     continue
-        # map_docs.append(_map)
-        # known_maps.add(track_id)

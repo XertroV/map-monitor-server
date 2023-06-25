@@ -5,17 +5,19 @@ import logging
 import time
 from typing import Coroutine, Optional
 from django.shortcuts import render, get_object_or_404
-from django.http import JsonResponse, HttpResponseNotAllowed, HttpRequest, HttpResponseForbidden, HttpResponse, HttpResponseNotFound
+from django.http import JsonResponse, HttpResponseNotAllowed, HttpRequest, HttpResponseForbidden, HttpResponse, HttpResponseNotFound, HttpResponseBadRequest
 from django.core import serializers
 from django.db.models import Model
 from django.utils import timezone
 from django.db import transaction
+from numpy import random
+from getrecords.management.commands.tmx_scraper import get_scrape_state
 
 from getrecords.openplanet import ARCHIVIST_PLUGIN_ID, MAP_MONITOR_PLUGIN_ID, TokenResp, check_token, sha_256
 from getrecords.s3 import upload_ghost_to_s3
 from getrecords.utils import sha_256_b_ts
 
-from .models import Challenge, CotdQualiTimes, Ghost, MapTotalPlayers, Track, TrackStats, User, UserStats, UserTrackPlay
+from .models import Challenge, CotdQualiTimes, Ghost, MapTotalPlayers, TmxMap, Track, TrackStats, User, UserStats, UserTrackPlay
 from .nadeoapi import LOCAL_DEV_MODE, nadeo_get_nb_players_for_map, nadeo_get_surround_for_map
 import getrecords.nadeoapi as nadeoapi
 
@@ -261,6 +263,81 @@ def register_token_archivist(request, user: User):
 def register_token_mm(request, user: User):
     if user is None: return JsonErrorResponse({'error': 'user was None'}, status_code=403)
     return JsonResponse({'username': user.display_name})
+
+
+
+
+
+class LengthOp:
+    EQ = 0
+    LT = 1
+    GT = 2
+    LTE = 3
+    GTE = 4
+
+def tmx_len_match(m: TmxMap, op: LengthOp, l_enum: int) -> bool:
+    if l_enum <= 0: return True
+    if op == LengthOp.EQ: return m.LengthEnum == l_enum
+    if op == LengthOp.LT: return m.LengthEnum < l_enum
+    if op == LengthOp.GT: return m.LengthEnum > l_enum
+    if op == LengthOp.LTE: return m.LengthEnum <= l_enum
+    if op == LengthOp.GTE: return m.LengthEnum >= l_enum
+    return True
+
+def tmx_vehicle_match(m: TmxMap, vehicle) -> bool:
+    if vehicle == 0: return True
+    if vehicle == 1: return m.VehicleName == "CarSport"
+    return True
+
+def tmx_mtype_match(m: TmxMap, mtype) -> bool:
+    if len(mtype) == 0: return True
+    return m.MapType == mtype
+
+def tmx_etags_match(m: TmxMap, etags: list[int]) -> bool:
+    tags = list(map(int, m.Tags.split(',')))
+    for t in etags:
+        if t in tags: return False
+    return True
+
+
+def tmx_compat_mapsearch2(request):
+    if request.method != "GET": return HttpResponseNotAllowed(['GET'])
+    try:
+        is_random = request.GET.get('random', '0') == '1'
+        if not is_random:
+            return HttpResponseBadRequest(f"Only random=1 supported")
+        exclude_tags: list[int] = list(map(int, request.GET.get('etags', '').split(",")))
+        length_op = int(request.GET.get('lengthop', '0'))
+        length = int(request.GET.get('length', '0'))
+        vehicles = int(request.GET.get('vehicles', '0'))
+        mtype = request.GET.get('mtype', '')
+    except Exception as e:
+        return HttpResponseBadRequest(f"Exception processing query params: {e}")
+    
+    state = get_scrape_state()
+
+    count = 0
+    # now the random part
+    while count < 1000:
+        count += 1
+        tid = random.randint(1, state.LastScraped + 1)
+        track = TmxMap.objects.filter(pk=tid).first()
+        if track is None:
+            logging.info(f"No track: {tid}")
+            continue
+        if not tmx_len_match(track, length_op, length) \
+            or not tmx_vehicle_match(track, vehicles) \
+            or not tmx_mtype_match(track, mtype) \
+            or not tmx_etags_match(track, exclude_tags):
+            logging.info(f"Track did not match: {tid}")
+            continue
+        return JsonResponse({'results': [model_to_dict(track)], 'totalItemCount': 1})
+        # track.Tags
+    return HttpResponseNotFound("Searched 1k maps but did not find a map")
+
+
+
+
 
 
 

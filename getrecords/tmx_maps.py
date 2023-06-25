@@ -3,6 +3,26 @@ import datetime
 import logging
 
 
+"""Length Enums:
+0: Anything
+1: 15 seconds
+2: 30
+3: 45
+4: 1min
+5: 1:15
+6: 1:30
+7: 1:45
+8: 2:00
+9: 2:30
+10: 3:00
+11: 3:30
+12: 4:00
+13: 4:30
+14: 5:00
+15: Longer than 5 min
+"""
+
+
 def length_secs_to_enum(length_secs):
     if length_secs <= 120:
         return round(length_secs / 15)
