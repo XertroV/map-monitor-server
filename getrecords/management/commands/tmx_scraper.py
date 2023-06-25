@@ -64,6 +64,7 @@ async def scrape_range(state: TmxMapScrapeState, latest: int):
         state.LastScraped = to_scrape[-1]
         await state.asave()
         logging.info(f"state.LastScraped: {state.LastScraped}")
+        await asyncio.sleep(.8)
 
 async def get_latest_map_id() -> int:
     async with get_session() as session:
