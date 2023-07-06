@@ -365,6 +365,13 @@ def tmx_maps_get_map_info_multi(request, mapids: str):
 
 
 
+def tmx_uid_to_tid_map(request):
+    maps = TmxMap.objects.all()
+    ret = []
+    for m in maps:
+        ret.append([m.TrackID, m.TrackUID])
+    return JsonResponse(ret, safe=False)
+
 
 
 def tmx_next_map(request, map_id: int):
