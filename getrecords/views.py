@@ -313,7 +313,7 @@ def tmx_compat_mapsearch2(request):
         mtype = request.GET.get('mtype', '')
     except Exception as e:
         return HttpResponseBadRequest(f"Exception processing query params: {e}")
-    
+
     state = get_scrape_state()
 
     count = 0
@@ -345,7 +345,15 @@ def tmx_api_tags_gettags(request):
     return HttpResponsePermanentRedirect(f"https://trackmania.exchange/api/tags/gettags")
 
 def tmx_maps_get_map_info_multi(request, mapids: str):
-    return HttpResponseRedirect(f"https://trackmania.exchange/api/maps/get_map_info/multi/{mapids}")
+    try:
+        tmxIds = list(map(int, mapids.split(',')))
+        tracks = TmxMap.objects.filter(TrackID__in=tmxIds)
+        return JsonResponse([
+            model_to_dict(track) for track in tracks
+        ], safe=False)
+    except Exception as e:
+        print(f"Exception getting map ids: {e}")
+        return HttpResponseRedirect(f"https://trackmania.exchange/api/maps/get_map_info/multi/{mapids}")
 
 
 
