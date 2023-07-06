@@ -348,9 +348,15 @@ def tmx_maps_get_map_info_multi(request, mapids: str):
     try:
         tmxIds = list(map(int, mapids.split(',')))
         tracks = TmxMap.objects.filter(TrackID__in=tmxIds)
-        return JsonResponse([
-            model_to_dict(track) for track in tracks
-        ], safe=False)
+        resp = []
+        done = set()
+        for track in tracks:
+            if track.TrackID in done:
+                print(f"Skipping duplicate: {track.TrackID}")
+                continue
+            done.add(track.TrackID)
+            resp.append(model_to_dict(track))
+        return JsonResponse(resp, safe=False)
     except Exception as e:
         print(f"Exception getting map ids: {e}")
         return HttpResponseRedirect(f"https://trackmania.exchange/api/maps/get_map_info/multi/{mapids}")
