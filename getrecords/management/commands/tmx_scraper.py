@@ -80,6 +80,8 @@ async def run_tmx_scraper(state: TmxMapScrapeState, update_state: TmxMapScrapeSt
 async def scrape_range(state: TmxMapScrapeState, latest: int):
     while state.LastScraped < latest:
         # max 50 entries, but urls fail with too many (40 * 6 digits long breaks, but is okay with 5 digits)
+        if state.LastScraped > 5040 and state.LastScraped < 15000:
+            state.LastScraped = 15000
         to_scrape = list(range(state.LastScraped + 1, latest + 1)[:30])
         await update_maps_from_tmx(to_scrape)
         state.LastScraped = to_scrape[-1]
@@ -229,7 +231,7 @@ async def scrape_unbeaten_ats():
             logging.info(f"Checked AT ({track.AuthorTime}) for {track.TrackID}: {mapAT.AuthorTimeBeaten}")#\n{res}")
         await mapAT.asave()
         count += 1
-        if count >= 500:
+        if count >= 300:
             break
 
 
