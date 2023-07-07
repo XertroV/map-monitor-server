@@ -377,10 +377,32 @@ def tmx_api_tags_gettags(request):
     return HttpResponsePermanentRedirect(f"https://trackmania.exchange/api/tags/gettags")
 
 def tmx_maps_get_map_info_multi(request, mapids: str):
-    return HttpResponseRedirect(f"https://trackmania.exchange/api/maps/get_map_info/multi/{mapids}")
+    try:
+        tmxIds = list(map(int, mapids.split(',')))
+        tracks = TmxMap.objects.filter(TrackID__in=tmxIds)
+        print(f"Got ids: {len(tmxIds)} and tracks: {len(tracks)}")
+        resp = []
+        done = set()
+        for track in tracks:
+            if track.TrackID in done:
+                # print(f"Skipping duplicate: {track.TrackID}")
+                continue
+            done.add(track.TrackID)
+            resp.append(model_to_dict(track))
+        return JsonResponse(resp, safe=False)
+    except Exception as e:
+        print(f"Exception getting map ids: {e}")
+        return HttpResponseRedirect(f"https://trackmania.exchange/api/maps/get_map_info/multi/{mapids}")
 
 
 
+
+def tmx_uid_to_tid_map(request):
+    maps = TmxMap.objects.all()
+    ret = []
+    for m in maps:
+        ret.append([m.TrackID, m.TrackUID])
+    return JsonResponse(ret, safe=False)
 
 
 

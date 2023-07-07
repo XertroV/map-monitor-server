@@ -22,4 +22,5 @@ urlpatterns = [
     path(f'maps/download/<int:mapid>', views.map_dl, name='map_dl'),
     path(f'api/maps/get_map_info/multi/<str:mapids>', views.tmx_maps_get_map_info_multi),
     path(f'api/tags/gettags', views.tmx_api_tags_gettags),
+    # path(f'tmx/uid-to-tid-map', views.tmx_uid_to_tid_map),
 ]
