@@ -224,7 +224,7 @@ async def scrape_unbeaten_ats():
                     score = wr['score']
                     if score <= track.AuthorTime:
                         set_at_beaten(mapAT, track, world_tops)
-            logging.info(f"Checked AT ({track.AuthorTime}) for {track.TrackID}:\n{model_to_dict(mapAT)}")#\n{res}")
+            logging.info(f"Checked AT ({track.AuthorTime}) for {track.TrackID}: {mapAT.AuthorTimeBeaten}")#\n{res}")
         await mapAT.asave()
         count += 1
         if count >= 250:
