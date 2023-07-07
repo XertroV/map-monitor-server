@@ -134,6 +134,18 @@ class TmxMap(models.Model):
         super().__init__(*args, **kwargs)
 
 
+class TmxMapAT(models.Model):
+    Track: TmxMap = models.OneToOneField("TmxMap", on_delete=models.CASCADE, db_index=True)
+    UploadedToNadeo = models.BooleanField(default=False)
+    AuthorTimeBeaten = models.BooleanField(default=False)
+    ATBeatenTimestamp = models.IntegerField(default=-1)
+    ATBeatenUsers = models.TextField(default="")
+    LastChecked = models.FloatField(default=0)
+    Broken = models.BooleanField(default=False)
+
+
+
+
 class AuthToken(models.Model):
     token_for: str = models.CharField(max_length=64, db_index=True, unique=True)
     access_token: str = models.CharField(max_length=1024)

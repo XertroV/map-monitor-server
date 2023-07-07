@@ -226,6 +226,23 @@ async def get_challenge_records(_id: int, map_uid: str, length: int = 10, offset
             return None
 
 
+MAP_RECORD = "https://live-services.trackmania.nadeo.live/api/token/leaderboard/group/Personal_Best/map/{mapUid}/top?length={length}&onlyWorld={onlyWorld}&offset={offset}"
+
+
+async def get_map_records(mapUid: str, length: int = 20, offset: int = 0, only_world: bool = True, retry_fix_401=True):
+    await await_nadeo_services_initialized()
+    async with get_live_session() as session:
+        async with await session.get(MAP_RECORD.format(mapUid=mapUid, length=length, offset=offset, onlyWorld=str(only_world).lower())) as resp:
+            if resp.status == 200:
+                return await resp.json()
+            logging.warn(f"get_map_records status: {resp.status}, {await resp.text()}")
+            if (retry_fix_401 and resp.status == 401):
+                await reacquire_all_tokens(True)
+                return await get_map_records(mapUid, length, offset, only_world, retry_fix_401 = False)
+            return None
+
+
+
 MAP_SCORE_AROUND = "https://live-services.trackmania.nadeo.live/api/token/leaderboard/group/Personal_Best/map/{mapUid}/surround/1/1?onlyWorld=true&score={score}"
 
 async def get_map_scores_around(mapUid: str, score: int, retry_fix_401=True):

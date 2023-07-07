@@ -8,6 +8,8 @@ from contextlib import contextmanager
 import logging as log
 import os
 
+from django.core import serializers
+from django.db.models import Model
 
 @contextmanager
 def timeit_context(name):
@@ -74,6 +76,8 @@ def sha_256_b_ts(bs: bytes, ts: int) -> str:
     return sha_256_b(hashlib.sha256(bs).digest() + str(ts).encode('UTF8'))
 
 
+def model_to_dict(m: Model):
+    return serializers.serialize('python', [m])[0]['fields']
 
 
 

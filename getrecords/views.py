@@ -17,7 +17,7 @@ from getrecords.management.commands.tmx_scraper import get_scrape_state
 from getrecords.openplanet import ARCHIVIST_PLUGIN_ID, MAP_MONITOR_PLUGIN_ID, TokenResp, check_token, sha_256
 from getrecords.s3 import upload_ghost_to_s3
 from getrecords.tmx_maps import get_tmx_tags_cached
-from getrecords.utils import run_async, sha_256_b_ts
+from getrecords.utils import model_to_dict, run_async, sha_256_b_ts
 
 from .models import Challenge, CotdQualiTimes, Ghost, MapTotalPlayers, TmxMap, Track, TrackStats, User, UserStats, UserTrackPlay
 from .nadeoapi import LOCAL_DEV_MODE, core_get_maps_by_uid, nadeo_get_nb_players_for_map, nadeo_get_surround_for_map
@@ -29,9 +29,6 @@ NB_PLAYERS_CACHE_SECONDS = 5 * 60
 NB_PLAYERS_MAX_CACHE_SECONDS = 8 * 60 * 60
 # 10 sec
 QUALI_TIMES_CACHE_SECONDS = 10
-
-def model_to_dict(m: Model):
-    return serializers.serialize('python', [m])[0]['fields']
 
 
 def json_resp(m: Model):

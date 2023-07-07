@@ -6,8 +6,10 @@ from typing import Coroutine
 from django.core.management.base import BaseCommand, CommandError
 
 from getrecords.http import get_session
-from getrecords.models import TmxMap, TmxMapScrapeState
+from getrecords.models import TmxMap, TmxMapAT, TmxMapScrapeState
+from getrecords.nadeoapi import get_map_records
 from getrecords.tmx_maps import tmx_date_to_ts
+from getrecords.utils import model_to_dict
 
 class Command(BaseCommand):
     help = "Run the tmx scraper"
@@ -56,13 +58,16 @@ def get_update_scrape_state():
 async def run_tmx_scraper(state: TmxMapScrapeState, update_state: TmxMapScrapeState):
     while True:
         try:
-            latest_map = await get_latest_map_id()
-            if latest_map > state.LastScraped:
-                await scrape_range(state, latest_map)
-            await scrape_update_range(update_state)
+            await scrape_unbeaten_ats()
+            for _ in range(6):
+                latest_map = await get_latest_map_id()
+                if latest_map > state.LastScraped:
+                    await scrape_range(state, latest_map)
+                await scrape_update_range(update_state)
+                await asyncio.sleep(300)
         except Exception as e:
             logging.warn(f"Exception in txm scraper: {e}. Sleeping for 300s and trying again")
-        await asyncio.sleep(300)
+            await asyncio.sleep(300)
 
 async def scrape_range(state: TmxMapScrapeState, latest: int):
     while state.LastScraped < latest:
@@ -172,3 +177,62 @@ async def update_tmx_map(j: dict):
     if _map is not None:
         tmp_map.pk = _map.pk
     await tmp_map.asave()
+
+
+
+
+async def scrape_unbeaten_ats():
+    # init
+    at_rows_for = set()
+    all_tmx_map_pks = set()
+    all_tmx_maps: dict[int, TmxMap] = dict()
+    async for _map in TmxMap.objects.all():
+        all_tmx_map_pks.add(_map.pk)
+        all_tmx_maps[_map.pk] = _map
+    async for mapAT in TmxMapAT.objects.all():
+        at_rows_for.add(mapAT.Track_id)
+    missing_maps = all_tmx_map_pks - at_rows_for
+    print(f"Missing: {len(missing_maps)}")
+    for pk in missing_maps:
+        _at = TmxMapAT(Track=all_tmx_maps[pk])
+        await _at.asave()
+    print(f"Initialized {len(missing_maps)} TmxMapATs")
+
+    # now get ATs
+    q = TmxMapAT.objects.filter(AuthorTimeBeaten=False, Broken=False).order_by('LastChecked')
+    count = 0
+    async for mapAT in q:
+        mapAT.LastChecked = time.time()
+        track = all_tmx_maps[mapAT.Track_id]
+        if track.TrackUID is None:
+            mapAT.Broken = True
+            logging.info(f"Checked AT found Broken: {track.TrackID}")
+        else:
+            res = await get_map_records(track.TrackUID)
+            if len(res['tops']) > 0:
+                world_tops = res['tops'][0]['top']
+                if len(world_tops) > 0:
+                    wr = world_tops[0]
+                    score = wr['score']
+                    if score <= track.AuthorTime:
+                        set_at_beaten(mapAT, track, world_tops)
+            logging.info(f"Checked AT ({track.AuthorTime}) for {track.TrackID}:\n{model_to_dict(mapAT)}")#\n{res}")
+        await mapAT.asave()
+        count += 1
+        if count >= 250:
+            break
+
+
+
+def set_at_beaten(mapAT: TmxMapAT, track: TmxMap, world_tops: list[dict]):
+    mapAT.AuthorTimeBeaten = True
+    accounts = list()
+    for record in world_tops:
+        if record['score'] <= track.AuthorTime:
+            accounts.append(record['accountId'])
+    mapAT.ATBeatenUsers = ",".join(accounts)
+    mapAT.ATBeatenTimestamp = time.time()
+    mapAT.UploadedToNadeo = True
+
+
+# adsf
