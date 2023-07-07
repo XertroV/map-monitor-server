@@ -7,7 +7,7 @@ from django.core.management.base import BaseCommand, CommandError
 
 from getrecords.http import get_session
 from getrecords.models import TmxMap, TmxMapAT, TmxMapScrapeState
-from getrecords.nadeoapi import get_map_records
+from getrecords.nadeoapi import LOCAL_DEV_MODE, get_map_records
 from getrecords.tmx_maps import tmx_date_to_ts
 from getrecords.utils import model_to_dict
 
@@ -62,6 +62,8 @@ async def run_tmx_scraper(state: TmxMapScrapeState, update_state: TmxMapScrapeSt
     while True:
         start = time.time()
         try:
+            if LOCAL_DEV_MODE:
+                await scrape_unbeaten_ats()
             latest_map = await get_latest_map_id()
             if latest_map > state.LastScraped:
                 await scrape_range(state, latest_map)
@@ -204,10 +206,10 @@ async def scrape_unbeaten_ats():
     for pk in to_init:
         _at = TmxMapAT(Track=all_tmx_maps[pk])
         await _at.asave()
-    print(f"Initialized {len(missing_maps)} TmxMapATs")
+    print(f"Initialized {len(to_init)} TmxMapATs")
 
     # now get ATs
-    q = TmxMapAT.objects.filter(AuthorTimeBeaten=False, Broken=False).order_by('LastChecked')
+    q = TmxMapAT.objects.filter(AuthorTimeBeaten=False, Broken=False).order_by('LastChecked', 'Track_id')
     count = 0
     async for mapAT in q:
         mapAT.LastChecked = time.time()
@@ -227,7 +229,7 @@ async def scrape_unbeaten_ats():
             logging.info(f"Checked AT ({track.AuthorTime}) for {track.TrackID}: {mapAT.AuthorTimeBeaten}")#\n{res}")
         await mapAT.asave()
         count += 1
-        if count >= 250:
+        if count >= 500:
             break
 
 

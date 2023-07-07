@@ -19,7 +19,7 @@ from getrecords.s3 import upload_ghost_to_s3
 from getrecords.tmx_maps import get_tmx_tags_cached
 from getrecords.utils import model_to_dict, run_async, sha_256_b_ts
 
-from .models import Challenge, CotdQualiTimes, Ghost, MapTotalPlayers, TmxMap, Track, TrackStats, User, UserStats, UserTrackPlay
+from .models import Challenge, CotdQualiTimes, Ghost, MapTotalPlayers, TmxMap, TmxMapAT, Track, TrackStats, User, UserStats, UserTrackPlay
 from .nadeoapi import LOCAL_DEV_MODE, core_get_maps_by_uid, nadeo_get_nb_players_for_map, nadeo_get_surround_for_map
 import getrecords.nadeoapi as nadeoapi
 
@@ -447,6 +447,15 @@ def tmx_prev_map(request, map_id: int):
 def tmx_count_at_map(request, map_id: int):
     return JsonResponse(dict(maps_so_far=TmxMap.objects.filter(TrackID__lt=map_id).count()))
 
+
+def unbeaten_ats(request):
+    tracks = list()
+    q = TmxMapAT.objects.filter(AuthorTimeBeaten=False, Broken=False).all().select_related('Track')
+    for mapAT in q:
+        tracks.append((mapAT.Track.TrackID, mapAT.Track.TrackUID))
+    return JsonResponse(dict(
+        tracks=tracks
+    ))
 
 
 class JsonErrorResponse(JsonResponse):
