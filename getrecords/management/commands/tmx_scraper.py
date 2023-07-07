@@ -215,7 +215,7 @@ async def scrape_unbeaten_ats():
     print(f"Initialized {len(to_init)} TmxMapATs")
 
     # now get ATs
-    q = TmxMapAT.objects.filter(AuthorTimeBeaten=False, Broken=False).order_by('LastChecked', 'Track_id')
+    q = TmxMapAT.objects.filter(AuthorTimeBeaten=False, Broken=False).order_by('LastChecked', 'Track_id')[:AT_CHECK_BATCH_SIZE]
     count = 0
     mats = list()
     async for mapAT in q:
