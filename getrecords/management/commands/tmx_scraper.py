@@ -14,6 +14,9 @@ from getrecords.utils import model_to_dict
 
 AT_CHECK_BATCH_SIZE = 360
 
+if LOCAL_DEV_MODE:
+    AT_CHECK_BATCH_SIZE = 10
+
 
 class Command(BaseCommand):
     help = "Run the tmx scraper"
@@ -244,6 +247,8 @@ async def scrape_unbeaten_ats():
         count += 1
         if count >= AT_CHECK_BATCH_SIZE:
             break
+    del mats
+    del q
 
 
 

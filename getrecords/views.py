@@ -453,9 +453,10 @@ def unbeaten_ats(request):
     q = TmxMapAT.objects.filter(AuthorTimeBeaten=False, Broken=False).all().select_related('Track')
     for mapAT in q:
         tracks.append((mapAT.Track.TrackID, mapAT.Track.TrackUID))
-    return JsonResponse(dict(
-        tracks=tracks
-    ))
+    del q
+    resp = dict(tracks=tracks)
+    del tracks
+    return JsonResponse(resp)
 
 
 class JsonErrorResponse(JsonResponse):
