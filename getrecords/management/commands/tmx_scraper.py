@@ -199,7 +199,9 @@ async def scrape_unbeaten_ats():
         at_rows_for.add(mapAT.Track_id)
     missing_maps = all_tmx_map_pks - at_rows_for
     print(f"Missing: {len(missing_maps)}")
-    for pk in missing_maps:
+    # take at most 1k
+    to_init = list(missing_maps)[:1000]
+    for pk in to_init:
         _at = TmxMapAT(Track=all_tmx_maps[pk])
         await _at.asave()
     print(f"Initialized {len(missing_maps)} TmxMapATs")
