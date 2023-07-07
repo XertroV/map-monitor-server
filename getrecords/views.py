@@ -301,6 +301,9 @@ def tmx_etags_match(m: TmxMap, etags: list[int]) -> bool:
         if t in tags: return False
     return True
 
+def tmx_map_downloadable(m: TmxMap) -> bool:
+    return m.Downloadable and not (m.Unlisted or m.Unreleased)
+
 def tmx_map_still_public(m: TmxMap) -> bool:
     if m.Unlisted or m.Unreleased: return False
     try:
@@ -371,6 +374,7 @@ def mapsearch2_inner(request):
             or not tmx_vehicle_match(track, vehicles) \
             or not tmx_mtype_match(track, mtype) \
             or not tmx_etags_match(track, exclude_tags) \
+            or not tmx_map_downloadable(track) \
             or not tmx_map_still_public(track):
             logging.info(f"Track did not match: {tid}")
             continue
