@@ -24,6 +24,8 @@ class Command(BaseCommand):
         return task.result()
 
     def handle(self, *args, **options):
+        logging.info(f"Starting TMX Scraper")
+        print(f"Starting TMX Scraper")
         state = get_scrape_state()
         update_state = get_update_scrape_state()
         self._run_async(run_tmx_scraper(state, update_state))
