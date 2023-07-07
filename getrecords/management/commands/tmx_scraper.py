@@ -196,9 +196,9 @@ async def scrape_unbeaten_ats():
     at_rows_for = set()
     all_tmx_map_pks = set()
     all_tmx_maps: dict[int, TmxMap] = dict()
-    async for _map in TmxMap.objects.all():
-        all_tmx_map_pks.add(_map.pk)
-        all_tmx_maps[_map.pk] = _map
+    async for _map in TmxMap.objects.all().values('TrackID', 'TrackUID', 'AuthorTime', 'id', 'pk'):
+        all_tmx_map_pks.add(_map['pk'])
+        all_tmx_maps[_map['pk']] = _map
     async for mapAT in TmxMapAT.objects.all():
         at_rows_for.add(mapAT.Track_id)
     missing_maps = all_tmx_map_pks - at_rows_for
@@ -206,7 +206,7 @@ async def scrape_unbeaten_ats():
     # take at most 1k
     to_init = list(missing_maps)[:1000]
     for pk in to_init:
-        _at = TmxMapAT(Track=all_tmx_maps[pk])
+        _at = TmxMapAT(Track_id=pk)  #all_tmx_maps[pk]
         await _at.asave()
     print(f"Initialized {len(to_init)} TmxMapATs")
 
@@ -216,19 +216,19 @@ async def scrape_unbeaten_ats():
     async for mapAT in q:
         mapAT.LastChecked = time.time()
         track = all_tmx_maps[mapAT.Track_id]
-        if track.TrackUID is None:
+        if track['TrackUID'] is None:
             mapAT.Broken = True
-            logging.info(f"Checked AT found Broken: {track.TrackID}")
+            logging.info(f"Checked AT found Broken: {track['TrackID']}")
         else:
-            res = await get_map_records(track.TrackUID)
+            res = await get_map_records(track['TrackUID'])
             if len(res['tops']) > 0:
                 world_tops = res['tops'][0]['top']
                 if len(world_tops) > 0:
                     wr = world_tops[0]
                     score = wr['score']
-                    if score <= track.AuthorTime:
+                    if score <= track['AuthorTime']:
                         set_at_beaten(mapAT, track, world_tops)
-            logging.info(f"Checked AT ({track.AuthorTime}) for {track.TrackID}: {mapAT.AuthorTimeBeaten}")#\n{res}")
+            logging.info(f"Checked AT ({track['AuthorTime']} ms) for {track['TrackID']}: {mapAT.AuthorTimeBeaten}")#\n{res}")
         await mapAT.asave()
         count += 1
         if count >= 300:
@@ -240,7 +240,7 @@ def set_at_beaten(mapAT: TmxMapAT, track: TmxMap, world_tops: list[dict]):
     mapAT.AuthorTimeBeaten = True
     accounts = list()
     for record in world_tops:
-        if record['score'] <= track.AuthorTime:
+        if record['score'] <= track['AuthorTime']:
             accounts.append(record['accountId'])
     mapAT.ATBeatenUsers = ",".join(accounts)
     mapAT.ATBeatenTimestamp = time.time()
