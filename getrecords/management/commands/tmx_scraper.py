@@ -213,7 +213,14 @@ async def scrape_unbeaten_ats():
     # now get ATs
     q = TmxMapAT.objects.filter(AuthorTimeBeaten=False, Broken=False).order_by('LastChecked', 'Track_id')
     count = 0
+    mats = list()
     async for mapAT in q:
+        mapAT.LastChecked = time.time()
+        mats.append(mapAT)
+    await TmxMapAT.objects.abulk_update(mats, ['LastChecked'])
+    # for mapAT in mats:
+    #     await mapAT.asave()
+    for mapAT in mats:
         mapAT.LastChecked = time.time()
         track = all_tmx_maps[mapAT.Track_id]
         if track['TrackUID'] is None:
