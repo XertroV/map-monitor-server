@@ -60,15 +60,14 @@ async def run_tmx_scraper(state: TmxMapScrapeState, update_state: TmxMapScrapeSt
     while True:
         start = time.time()
         try:
+            latest_map = await get_latest_map_id()
+            if latest_map > state.LastScraped:
+                await scrape_range(state, latest_map)
+            await scrape_update_range(update_state)
             await scrape_unbeaten_ats()
-            for _ in range(6):
-                latest_map = await get_latest_map_id()
-                if latest_map > state.LastScraped:
-                    await scrape_range(state, latest_map)
-                await scrape_update_range(update_state)
-                sduration = max(0, loop_seconds - (time.time() - start))
-                logging.info(f"txm scraper sleeping for {sduration}s")
-                await asyncio.sleep(sduration)
+            sduration = max(0, loop_seconds - (time.time() - start))
+            logging.info(f"txm scraper sleeping for {sduration}s")
+            await asyncio.sleep(sduration)
         except Exception as e:
             sduration = max(0, loop_seconds - (time.time() - start))
             logging.warn(f"Exception in txm scraper: {e}. Sleeping for {sduration}s and trying again")
