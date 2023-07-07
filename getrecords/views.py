@@ -329,7 +329,17 @@ async def get_tmx_map(tid: int):
         except asyncio.TimeoutError as e:
             raise Exception(f"TMX timeout for get map infos")
 
-def tmx_compat_mapsearch2(request):
+def tmx_compat_mapsearch2(request: HttpRequest):
+    # try twice in case of random exception
+    for i in range(2):
+        try:
+            return mapsearch2_inner(request)
+        except Exception as e:
+            logging.error(f"Exception in mapsearch2: {e}")
+    return HttpResponseRedirect(f"https://trackmania.exchange{request.get_full_path()}")
+
+
+def mapsearch2_inner(request):
     if request.method != "GET": return HttpResponseNotAllowed(['GET'])
     try:
         is_random = request.GET.get('random', '0') == '1'
@@ -370,21 +380,20 @@ def tmx_compat_mapsearch2(request):
 
 
 
-
 def map_dl(request, mapid: int):
     tmx_url = f"https://trackmania.exchange/maps/download/{mapid}"
     cgf_url = f"https://cgf.s3.nl-1.wasabisys.com/{mapid}.Map.Gbx"
     if http_head_okay(tmx_url):
         return HttpResponseRedirect(tmx_url)
+    track = TmxMap.objects.filter(TrackID=mapid).first()
+    if track is not None and track.TrackUID is not None:
+        maps_resp = run_async(core_get_maps_by_uid([track.TrackUID]))
+        if maps_resp is not None and len(maps_resp) >= 1:
+            return HttpResponseRedirect(maps_resp[0]['fileUrl'])
+    # do this last because some are just a saved error page
     if http_head_okay(cgf_url):
         return HttpResponseRedirect(cgf_url)
-    track = TmxMap.objects.filter(TrackID=mapid).first()
-    if track is None or track.TrackUID is None:
-        return HttpResponseNotFound(f"Could not find track with ID: {mapid}! (Unknown ID or missing UID)")
-    maps_resp = run_async(core_get_maps_by_uid([track.TrackUID]))
-    if maps_resp is None or len(maps_resp) < 1:
-        return HttpResponseNotFound(f"Could not find track with ID: {mapid}! (Checked Nadeo)")
-    return HttpResponseRedirect(maps_resp[0]['fileUrl'])
+    return HttpResponseNotFound(f"Could not find track with ID: {mapid}! (Unknown ID or missing UID or not uploaded to Nadeo)")
 
 
 

@@ -122,8 +122,8 @@ class TmxMap(models.Model):
             kwargs['UpdateTimestamp'] = tmx_date_to_ts(kwargs['UpdatedAt'])
             kwargs['DifficultyInt'] = difficulty_to_int(kwargs["DifficultyName"])
 
-            remove_keys = ['Lightmap', 'UnlimiterRequired', 'ReplayWRID', 'ReplayWRTime', 'ReplayWRUserID', 'ReplayWRUsername', 'MappackID', 'HasGhostBlocks', 'EmbeddedObjectsCount', 'EmbeddedItemsSize', 'AuthorCount', 'SizeWarning', 'CommentCount', 'ReplayCount', 'VideoCount']            
-            
+            remove_keys = ['Lightmap', 'UnlimiterRequired', 'ReplayWRID', 'ReplayWRTime', 'ReplayWRUserID', 'ReplayWRUsername', 'MappackID', 'HasGhostBlocks', 'EmbeddedObjectsCount', 'EmbeddedItemsSize', 'AuthorCount', 'SizeWarning', 'CommentCount', 'ReplayCount', 'VideoCount']
+
             for k in remove_keys:
                 if k in kwargs:
                     del kwargs[k]
