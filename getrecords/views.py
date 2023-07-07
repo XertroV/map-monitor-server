@@ -11,6 +11,7 @@ from django.db.models import Model
 from django.utils import timezone
 from django.db import transaction
 from numpy import random
+from getrecords.http import get_session
 from getrecords.management.commands.tmx_scraper import get_scrape_state
 
 from getrecords.openplanet import ARCHIVIST_PLUGIN_ID, MAP_MONITOR_PLUGIN_ID, TokenResp, check_token, sha_256
@@ -299,6 +300,33 @@ def tmx_etags_match(m: TmxMap, etags: list[int]) -> bool:
         if t in tags: return False
     return True
 
+def tmx_map_still_public(m: TmxMap) -> bool:
+    if m.Unlisted or m.Unreleased: return False
+    try:
+        new_map: dict = run_async(get_tmx_map(m.TrackID))
+        # none is returned if status isn't 200, e.g., 404
+        if new_map is None: return False
+        if new_map.get('Unlisted', False) or new_map.get('Unreleased', False):
+            m.Unlisted = new_map.get('Unlisted', False)
+            m.Unreleased = new_map.get('Unreleased', False)
+            m.save()
+            return False
+    except Exception as e:
+        logging.warn(f"Exception checking if tmx map still public: {e}")
+    return True
+
+async def get_tmx_map(tid: int):
+    async with get_session() as session:
+        try:
+            async with session.get(f"https://trackmania.exchange/api/maps/get_map_info/multi/{tid}", timeout=1.5) as resp:
+                if resp.status == 200:
+                    maps = (await resp.json())
+                    if len(maps) == 0: return None
+                    return maps[0]
+                else:
+                    raise Exception(f"Could not get map info for {tid}: {resp.status} code.")
+        except asyncio.TimeoutError as e:
+            raise Exception(f"TMX timeout for get map infos")
 
 def tmx_compat_mapsearch2(request):
     if request.method != "GET": return HttpResponseNotAllowed(['GET'])
@@ -306,14 +334,17 @@ def tmx_compat_mapsearch2(request):
         is_random = request.GET.get('random', '0') == '1'
         if not is_random:
             return HttpResponseBadRequest(f"Only random=1 supported")
-        exclude_tags: list[int] = list(map(int, request.GET.get('etags', '').split(",")))
+        etags = request.GET.get('etags', '')
+        exclude_tags: list[int] = []
+        if len(etags) > 0:
+            exclude_tags = list(map(int, request.GET.get('etags', '').split(",")))
         length_op = int(request.GET.get('lengthop', '0'))
         length = int(request.GET.get('length', '0'))
         vehicles = int(request.GET.get('vehicles', '0'))
         mtype = request.GET.get('mtype', '')
     except Exception as e:
         return HttpResponseBadRequest(f"Exception processing query params: {e}")
-    
+
     state = get_scrape_state()
 
     count = 0
@@ -328,7 +359,8 @@ def tmx_compat_mapsearch2(request):
         if not tmx_len_match(track, length_op, length) \
             or not tmx_vehicle_match(track, vehicles) \
             or not tmx_mtype_match(track, mtype) \
-            or not tmx_etags_match(track, exclude_tags):
+            or not tmx_etags_match(track, exclude_tags) \
+            or not tmx_map_still_public(track):
             logging.info(f"Track did not match: {tid}")
             continue
         return JsonResponse({'results': [model_to_dict(track)], 'totalItemCount': 1})

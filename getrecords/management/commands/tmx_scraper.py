@@ -22,7 +22,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         state = get_scrape_state()
         self._run_async(run_tmx_scraper(state))
-        
+
         pass
         # todo
         # for poll_id in options["poll_ids"]:
@@ -79,10 +79,9 @@ async def update_maps_from_tmx(tids_or_uids: list[int | str]):
     tids_str = ','.join(map(str, tids_or_uids))
     async with get_session() as session:
         try:
-
             async with session.get(f"https://trackmania.exchange/api/maps/get_map_info/multi/{tids_str}", timeout=10.0) as resp:
                 if resp.status == 200:
-                    await _add_maps_from_json(dict(results=await resp.json()), False)
+                    await _add_maps_from_json(dict(results=await resp.json()))
                 else:
                     print(f"RETRY ME: {tids_str}")
                     raise Exception(f"Could not get map infos: {resp.status} code.")
@@ -91,7 +90,7 @@ async def update_maps_from_tmx(tids_or_uids: list[int | str]):
 
 
 
-async def _add_maps_from_json(j: dict, add_to_random_maps = True, log_replacement = True):
+async def _add_maps_from_json(j: dict):
     if 'results' not in j:
         raise Exception(f"Response didn't contain .results")
     maps_j = j['results']
