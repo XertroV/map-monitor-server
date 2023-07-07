@@ -203,7 +203,7 @@ async def scrape_unbeaten_ats():
     at_rows_for = set()
     all_tmx_map_pks = set()
     all_tmx_maps: dict[int, TmxMap] = dict()
-    async for _map in TmxMap.objects.all().values('TrackID', 'TrackUID', 'AuthorTime', 'id', 'pk'):
+    async for _map in TmxMap.objects.filter(MapType__contains="TM_Race").values('TrackID', 'TrackUID', 'MapType', 'AuthorTime', 'id', 'pk'):
         all_tmx_map_pks.add(_map['pk'])
         all_tmx_maps[_map['pk']] = _map
     async for mapAT in TmxMapAT.objects.all():
