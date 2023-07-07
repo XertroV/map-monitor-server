@@ -4,16 +4,19 @@ import json
 import logging
 import time
 from typing import Coroutine, Optional
+
+from numpy import random
+
 from django.shortcuts import render, get_object_or_404
 from django.http import HttpResponseRedirect, JsonResponse, HttpResponseNotAllowed, HttpRequest, HttpResponseForbidden, HttpResponse, HttpResponseNotFound, HttpResponseBadRequest, HttpResponsePermanentRedirect
 from django.core import serializers
 from django.db.models import Model
 from django.utils import timezone
 from django.db import transaction
-from numpy import random
+from django.core.cache import cache
+
 from getrecords.http import get_session, http_head_okay
 from getrecords.management.commands.tmx_scraper import get_scrape_state
-
 from getrecords.openplanet import ARCHIVIST_PLUGIN_ID, MAP_MONITOR_PLUGIN_ID, TokenResp, check_token, sha_256
 from getrecords.s3 import upload_ghost_to_s3
 from getrecords.tmx_maps import get_tmx_tags_cached
@@ -450,12 +453,14 @@ def tmx_count_at_map(request, map_id: int):
 
 def unbeaten_ats(request):
     tracks = list()
-    q = TmxMapAT.objects.filter(AuthorTimeBeaten=False, Broken=False).all().select_related('Track')
+    q = TmxMapAT.objects.filter(AuthorTimeBeaten=False, Broken=False).all().select_related('Track')\
+        .only('Track__TrackID', 'Track__TrackUID', 'Track__Name', 'Track__AuthorLogin', 'Track__Tags', 'Track__AuthorTime', 'WR')
     for mapAT in q:
         tracks.append((mapAT.Track.TrackID, mapAT.Track.TrackUID))
     del q
     resp = dict(tracks=tracks)
     del tracks
+    cache.clear()
     return JsonResponse(resp)
 
 

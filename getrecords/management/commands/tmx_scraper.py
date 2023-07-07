@@ -258,6 +258,8 @@ def set_at_beaten(mapAT: TmxMapAT, track: TmxMap, world_tops: list[dict]):
     for record in world_tops:
         if record['score'] <= track['AuthorTime']:
             accounts.append(record['accountId'])
+    mapAT.WR = world_tops[0]['score']
+    mapAT.WR_Player = world_tops[0]['accountId']
     mapAT.ATBeatenUsers = ",".join(accounts)
     mapAT.ATBeatenTimestamp = time.time()
     mapAT.UploadedToNadeo = True
