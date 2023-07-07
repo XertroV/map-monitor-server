@@ -11,14 +11,16 @@ from django.db.models import Model
 from django.utils import timezone
 from django.db import transaction
 from numpy import random
+from getrecords.http import http_head_okay
 from getrecords.management.commands.tmx_scraper import get_scrape_state
 
 from getrecords.openplanet import ARCHIVIST_PLUGIN_ID, MAP_MONITOR_PLUGIN_ID, TokenResp, check_token, sha_256
 from getrecords.s3 import upload_ghost_to_s3
-from getrecords.utils import sha_256_b_ts
+from getrecords.tmx_maps import get_tmx_tags_cached
+from getrecords.utils import run_async, sha_256_b_ts
 
 from .models import Challenge, CotdQualiTimes, Ghost, MapTotalPlayers, TmxMap, Track, TrackStats, User, UserStats, UserTrackPlay
-from .nadeoapi import LOCAL_DEV_MODE, nadeo_get_nb_players_for_map, nadeo_get_surround_for_map
+from .nadeoapi import LOCAL_DEV_MODE, core_get_maps_by_uid, nadeo_get_nb_players_for_map, nadeo_get_surround_for_map
 import getrecords.nadeoapi as nadeoapi
 
 # 5 min
@@ -339,10 +341,25 @@ def tmx_compat_mapsearch2(request):
 
 
 def map_dl(request, mapid: int):
-    return HttpResponsePermanentRedirect(f"https://trackmania.exchange/maps/download/{mapid}")
+    tmx_url = f"https://trackmania.exchange/maps/download/{mapid}"
+    cgf_url = f"https://cgf.s3.nl-1.wasabisys.com/{mapid}.Map.Gbx"
+    if http_head_okay(tmx_url):
+        return HttpResponseRedirect(tmx_url)
+    if http_head_okay(cgf_url):
+        return HttpResponseRedirect(cgf_url)
+    track = TmxMap.objects.filter(TrackID=mapid).first()
+    if track is None or track.TrackUID is None:
+        return HttpResponseNotFound(f"Could not find track with ID: {mapid}! (Unknown ID or missing UID)")
+    maps_resp = run_async(core_get_maps_by_uid([track.TrackUID]))
+    if maps_resp is None or len(maps_resp) < 1:
+        return HttpResponseNotFound(f"Could not find track with ID: {mapid}! (Checked Nadeo)")
+    return HttpResponseRedirect(maps_resp[0]['fileUrl'])
+
+
 
 def tmx_api_tags_gettags(request):
-    return HttpResponsePermanentRedirect(f"https://trackmania.exchange/api/tags/gettags")
+    return JsonResponse(get_tmx_tags_cached(), safe=False)
+    # return HttpResponsePermanentRedirect(f"https://trackmania.exchange/api/tags/gettags")
 
 def tmx_maps_get_map_info_multi(request, mapids: str):
     try:
@@ -395,11 +412,3 @@ class JsonErrorResponse(JsonResponse):
     def __init__(self, *args, status_code=500, **kwargs):
         super().__init__(*args, **kwargs)
         self.status_code = status_code
-
-
-
-def run_async(coro: Coroutine):
-    loop = asyncio.new_event_loop()
-    task = loop.create_task(coro)
-    loop.run_until_complete(task)
-    return task.result()

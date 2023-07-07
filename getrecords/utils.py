@@ -1,8 +1,9 @@
 
+import asyncio
 import hashlib
 from pathlib import Path
 import time
-from typing import Iterable
+from typing import Coroutine, Iterable
 from contextlib import contextmanager
 import logging as log
 import os
@@ -71,3 +72,13 @@ def sha_256_b(bs: bytes) -> str:
 
 def sha_256_b_ts(bs: bytes, ts: int) -> str:
     return sha_256_b(hashlib.sha256(bs).digest() + str(ts).encode('UTF8'))
+
+
+
+
+
+def run_async(coro: Coroutine):
+    loop = asyncio.new_event_loop()
+    task = loop.create_task(coro)
+    loop.run_until_complete(task)
+    return task.result()
