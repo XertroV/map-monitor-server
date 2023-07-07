@@ -11,6 +11,10 @@ from getrecords.nadeoapi import LOCAL_DEV_MODE, get_map_records
 from getrecords.tmx_maps import tmx_date_to_ts
 from getrecords.utils import model_to_dict
 
+
+AT_CHECK_BATCH_SIZE = 360
+
+
 class Command(BaseCommand):
     help = "Run the tmx scraper"
 
@@ -203,8 +207,8 @@ async def scrape_unbeaten_ats():
         at_rows_for.add(mapAT.Track_id)
     missing_maps = all_tmx_map_pks - at_rows_for
     print(f"Missing: {len(missing_maps)}")
-    # take at most 1k
-    to_init = list(missing_maps)[:1000]
+    # take at most AT_CHECK_BATCH_SIZE
+    to_init = list(missing_maps)[:AT_CHECK_BATCH_SIZE]
     for pk in to_init:
         _at = TmxMapAT(Track_id=pk)  #all_tmx_maps[pk]
         await _at.asave()
@@ -238,7 +242,7 @@ async def scrape_unbeaten_ats():
             logging.info(f"Checked AT ({track['AuthorTime']} ms) for {track['TrackID']}: {mapAT.AuthorTimeBeaten}")#\n{res}")
         await mapAT.asave()
         count += 1
-        if count >= 300:
+        if count >= AT_CHECK_BATCH_SIZE:
             break
 
 
