@@ -453,7 +453,7 @@ def tmx_count_at_map(request, map_id: int):
 
 def unbeaten_ats(request):
     tracks = list()
-    q = TmxMapAT.objects.filter(AuthorTimeBeaten=False, Broken=False).all().select_related('Track')\
+    q = TmxMapAT.objects.filter(AuthorTimeBeaten=False, Broken=False, Track__MapType__contains="TM_Race").all().select_related('Track')\
         .only('Track__TrackID', 'Track__TrackUID', 'Track__Name', 'Track__AuthorLogin', 'Track__Tags', 'Track__AuthorTime', 'Track__MapType', 'WR', 'LastChecked')
     for mapAT in q:
         if "TM_Race" not in mapAT.Track.MapType: continue
