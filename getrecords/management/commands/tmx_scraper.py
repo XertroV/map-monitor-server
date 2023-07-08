@@ -231,6 +231,9 @@ async def scrape_unbeaten_ats():
         #     await mapAT.asave()
         for mapAT in mats:
             mapAT.LastChecked = time.time()
+            if mapAT.Track_id not in all_tmx_maps:
+                logging.warn(f"skipping {mapAT.Track_id} id, not in all maps")
+                continue
             track = all_tmx_maps[mapAT.Track_id]
             if track['TrackUID'] is None:
                 mapAT.Broken = True
