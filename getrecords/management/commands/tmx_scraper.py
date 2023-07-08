@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import time
+import traceback
 from typing import Coroutine
 
 from django.core.management.base import BaseCommand, CommandError
@@ -199,56 +200,61 @@ async def update_tmx_map(j: dict):
 
 
 async def scrape_unbeaten_ats():
-    # init
-    at_rows_for = set()
-    all_tmx_map_pks = set()
-    all_tmx_maps: dict[int, TmxMap] = dict()
-    async for _map in TmxMap.objects.filter(MapType__contains="TM_Race").values('TrackID', 'TrackUID', 'MapType', 'AuthorTime', 'id', 'pk'):
-        all_tmx_map_pks.add(_map['pk'])
-        all_tmx_maps[_map['pk']] = _map
-    async for mapAT in TmxMapAT.objects.all():
-        at_rows_for.add(mapAT.Track_id)
-    missing_maps = all_tmx_map_pks - at_rows_for
-    print(f"Missing: {len(missing_maps)}")
-    # take at most AT_CHECK_BATCH_SIZE
-    to_init = list(missing_maps)[:AT_CHECK_BATCH_SIZE]
-    for pk in to_init:
-        _at = TmxMapAT(Track_id=pk)  #all_tmx_maps[pk]
-        await _at.asave()
-    print(f"Initialized {len(to_init)} TmxMapATs")
+    try:
+        # init
+        at_rows_for = set()
+        all_tmx_map_pks = set()
+        all_tmx_maps: dict[int, TmxMap] = dict()
+        async for _map in TmxMap.objects.filter(MapType__contains="TM_Race").values('TrackID', 'TrackUID', 'MapType', 'AuthorTime', 'id', 'pk'):
+            all_tmx_map_pks.add(_map['pk'])
+            all_tmx_maps[_map['pk']] = _map
+        async for mapAT in TmxMapAT.objects.all():
+            at_rows_for.add(mapAT.Track_id)
+        missing_maps = all_tmx_map_pks - at_rows_for
+        print(f"Missing: {len(missing_maps)}")
+        # take at most AT_CHECK_BATCH_SIZE
+        to_init = list(missing_maps)[:AT_CHECK_BATCH_SIZE]
+        for pk in to_init:
+            _at = TmxMapAT(Track_id=pk)  #all_tmx_maps[pk]
+            await _at.asave()
+        print(f"Initialized {len(to_init)} TmxMapATs")
 
-    # now get ATs
-    q = TmxMapAT.objects.filter(AuthorTimeBeaten=False, Broken=False).order_by('LastChecked', 'Track_id')[:AT_CHECK_BATCH_SIZE]
-    count = 0
-    mats = list()
-    async for mapAT in q:
-        mapAT.LastChecked = time.time()
-        mats.append(mapAT)
-    await TmxMapAT.objects.abulk_update(mats, ['LastChecked'])
-    # for mapAT in mats:
-    #     await mapAT.asave()
-    for mapAT in mats:
-        mapAT.LastChecked = time.time()
-        track = all_tmx_maps[mapAT.Track_id]
-        if track['TrackUID'] is None:
-            mapAT.Broken = True
-            logging.info(f"Checked AT found Broken: {track['TrackID']}")
-        else:
-            res = await get_map_records(track['TrackUID'])
-            if len(res['tops']) > 0:
-                world_tops = res['tops'][0]['top']
-                if len(world_tops) > 0:
-                    wr = world_tops[0]
-                    score = wr['score']
-                    if score <= track['AuthorTime']:
-                        set_at_beaten(mapAT, track, world_tops)
-            logging.info(f"Checked AT ({track['AuthorTime']} ms) for {track['TrackID']}: {mapAT.AuthorTimeBeaten}")#\n{res}")
-        await mapAT.asave()
-        count += 1
-        if count >= AT_CHECK_BATCH_SIZE:
-            break
-    del mats
-    del q
+        # now get ATs
+        q = TmxMapAT.objects.filter(AuthorTimeBeaten=False, Broken=False).order_by('LastChecked', 'Track_id')[:AT_CHECK_BATCH_SIZE]
+        count = 0
+        mats = list()
+        async for mapAT in q:
+            mapAT.LastChecked = time.time()
+            mats.append(mapAT)
+        await TmxMapAT.objects.abulk_update(mats, ['LastChecked'])
+        # for mapAT in mats:
+        #     await mapAT.asave()
+        for mapAT in mats:
+            mapAT.LastChecked = time.time()
+            track = all_tmx_maps[mapAT.Track_id]
+            if track['TrackUID'] is None:
+                mapAT.Broken = True
+                logging.info(f"Checked AT found Broken: {track['TrackID']}")
+            else:
+                res = await get_map_records(track['TrackUID'])
+                if len(res['tops']) > 0:
+                    world_tops = res['tops'][0]['top']
+                    if len(world_tops) > 0:
+                        wr = world_tops[0]
+                        score = wr['score']
+                        if score <= track['AuthorTime']:
+                            set_at_beaten(mapAT, track, world_tops)
+                logging.info(f"Checked AT ({track['AuthorTime']} ms) for {track['TrackID']}: {mapAT.AuthorTimeBeaten}")#\n{res}")
+            await mapAT.asave()
+            count += 1
+            if count >= AT_CHECK_BATCH_SIZE:
+                break
+        del mats
+        del q
+    except Exception as e:
+        logging.error(f"Exception during tmx AT scrape (will reraise): {e}")
+        traceback.print_exception(e)
+        raise e
 
 
 
