@@ -460,7 +460,7 @@ def unbeaten_ats(request):
         tracks.append((mapAT.Track.TrackID, mapAT.Track.TrackUID, mapAT.Track.Name, mapAT.Track.AuthorLogin, mapAT.Track.Tags, mapAT.Track.MapType, mapAT.Track.AuthorTime, mapAT.WR, mapAT.LastChecked))
     del q
     keys = ['TrackID', 'TrackUID', 'Track_Name', 'AuthorLogin', 'Tags', 'MapType', 'AuthorTime', 'WR', 'LastChecked']
-    resp = dict(keys=keys, tracks=tracks)
+    resp = dict(keys=keys, nbTracks=len(tracks), tracks=tracks)
     # cache.clear()
     return JsonResponse(resp)
 
