@@ -11,6 +11,7 @@ from getrecords.models import TmxMap, TmxMapAT, TmxMapScrapeState
 from getrecords.nadeoapi import LOCAL_DEV_MODE, get_map_records
 from getrecords.tmx_maps import tmx_date_to_ts
 from getrecords.utils import model_to_dict
+from getrecords.view_logic import refresh_nb_players_inner
 
 
 AT_CHECK_BATCH_SIZE = 360
@@ -248,6 +249,10 @@ async def scrape_unbeaten_ats():
                         mapAT.WR = score
                         if score <= track['AuthorTime']:
                             set_at_beaten(mapAT, track, world_tops)
+                        try:
+                            await refresh_nb_players_inner(track['TrackUID'])
+                        except Exception as e:
+                            logging.warn(f"Exception refreshing nb players from tmx scraper for {mapAT}: {e}")
                 logging.info(f"Checked AT ({track['AuthorTime']} ms) for {track['TrackID']}: Beaten: {mapAT.AuthorTimeBeaten}, WR: {mapAT.WR}")#\n{res}")
             await mapAT.asave()
             count += 1
