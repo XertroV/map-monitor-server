@@ -459,9 +459,9 @@ def unbeaten_ats(request):
         if "TM_Race" not in mapAT.Track.MapType: continue
         tracks.append((mapAT.Track.TrackID, mapAT.Track.TrackUID, mapAT.Track.Name, mapAT.Track.AuthorLogin, mapAT.Track.Tags, mapAT.Track.MapType, mapAT.Track.AuthorTime, mapAT.WR, mapAT.LastChecked))
     del q
-    resp = dict(tracks=tracks)
-    del tracks
-    cache.clear()
+    keys = ['TrackID', 'TrackUID', 'Track_Name', 'AuthorLogin', 'Tags', 'MapType', 'AuthorTime', 'WR', 'LastChecked']
+    resp = dict(keys=keys, tracks=tracks)
+    # cache.clear()
     return JsonResponse(resp)
 
 

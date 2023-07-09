@@ -222,7 +222,7 @@ async def scrape_unbeaten_ats():
         # now get ATs
         q = TmxMapAT.objects.filter(AuthorTimeBeaten=False, Broken=False, Track__MapType__contains="TM_Race").order_by('LastChecked', 'Track_id')[:AT_CHECK_BATCH_SIZE]
         count = 0
-        mats = list()
+        mats: list[TmxMapAT] = list()
         async for mapAT in q:
             mapAT.LastChecked = time.time()
             mats.append(mapAT)
@@ -245,9 +245,10 @@ async def scrape_unbeaten_ats():
                     if len(world_tops) > 0:
                         wr = world_tops[0]
                         score = wr['score']
+                        mapAT.WR = score
                         if score <= track['AuthorTime']:
                             set_at_beaten(mapAT, track, world_tops)
-                logging.info(f"Checked AT ({track['AuthorTime']} ms) for {track['TrackID']}: {mapAT.AuthorTimeBeaten}")#\n{res}")
+                logging.info(f"Checked AT ({track['AuthorTime']} ms) for {track['TrackID']}: Beaten: {mapAT.AuthorTimeBeaten}, WR: {mapAT.WR}")#\n{res}")
             await mapAT.asave()
             count += 1
             if count >= AT_CHECK_BATCH_SIZE:
