@@ -451,11 +451,25 @@ def unbeaten_ats(request):
     tracks = list()
     q = TmxMapAT.objects.filter(AuthorTimeBeaten=False, Broken=False, Track__MapType__contains="TM_Race").all().select_related('Track')\
         .only('Track__TrackID', 'Track__TrackUID', 'Track__Name', 'Track__AuthorLogin', 'Track__Tags', 'Track__AuthorTime', 'Track__MapType', 'WR', 'LastChecked')
+    uids = list()
+    keys = ['TrackID', 'TrackUID', 'Track_Name', 'AuthorLogin', 'Tags', 'MapType', 'AuthorTime', 'WR', 'LastChecked']
     for mapAT in q:
         if "TM_Race" not in mapAT.Track.MapType: continue
-        tracks.append((mapAT.Track.TrackID, mapAT.Track.TrackUID, mapAT.Track.Name, mapAT.Track.AuthorLogin, mapAT.Track.Tags, mapAT.Track.MapType, mapAT.Track.AuthorTime, mapAT.WR, mapAT.LastChecked))
-    del q
-    keys = ['TrackID', 'TrackUID', 'Track_Name', 'AuthorLogin', 'Tags', 'MapType', 'AuthorTime', 'WR', 'LastChecked']
+        tracks.append([mapAT.Track.TrackID, mapAT.Track.TrackUID, mapAT.Track.Name, mapAT.Track.AuthorLogin, mapAT.Track.Tags, mapAT.Track.MapType, mapAT.Track.AuthorTime, mapAT.WR, mapAT.LastChecked])
+        uids.append(mapAT.Track.TrackUID)
+    q = MapTotalPlayers.objects.filter(uid__in=uids)
+
+    nbPlayersMap = dict()
+    for mtp in q:
+        nbPlayersMap[mtp.uid] = mtp.nb_players
+    keys.append('NbPlayers')
+    for track in tracks:
+        uid = track[1]
+        if uid in nbPlayersMap:
+            track.append(nbPlayersMap[uid])
+        else:
+            track.append(-1)
+
     resp = dict(keys=keys, nbTracks=len(tracks), tracks=tracks)
     # cache.clear()
     return JsonResponse(resp)
