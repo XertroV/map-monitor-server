@@ -470,6 +470,8 @@ def unbeaten_ats(request):
         else:
             track.append(-1)
 
+    tracks.sort()
+
     resp = dict(keys=keys, nbTracks=len(tracks), tracks=tracks)
     # cache.clear()
     return JsonResponse(resp)
