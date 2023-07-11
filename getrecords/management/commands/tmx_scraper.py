@@ -312,7 +312,7 @@ async def cache_unbeaten_ats():
         cv = CachedValue(name=UNBEATEN_ATS_CV_NAME, value="")
     cv.value = json.dumps(resp)
     await cv.asave()
-    logging.info(f"Cached unbeaten ATs; len={len(cv.value)}")
+    logging.info(f"Cached unbeaten ATs; len={len(cv.value)} / {len(tracks)}")
 
 
 # adsf
