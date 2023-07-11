@@ -479,6 +479,30 @@ def unbeaten_ats(request):
     return JsonResponse(resp)
 
 
+
+
+
+def debug_nb_dup_tids(request):
+    all_tids = list(TmxMap.objects.only('TrackID', 'UpdateTimestamp').order_by('TrackID', '-UpdateTimestamp', 'id'))
+    seen_tids = set()
+    dup_recs: list[dict] = list()
+    dup_tids: list[TmxMap] = list()
+    last = None
+    for tid in all_tids:
+        if tid.TrackID in seen_tids:
+            dup_recs.append(dict(orig=[last.pk, last.TrackID, last.UpdateTimestamp], todel=[tid.pk, tid.TrackID, tid.UpdateTimestamp]))
+            dup_tids.append(tid)
+        else:
+            seen_tids.add(tid.TrackID)
+        last = tid
+
+    if request.GET.get('purge', '').lower() == 'true':
+        for tid in dup_tids:
+            tid.delete()
+
+    return JsonResponse(dict(TrackID_Duplicates=dict(total=len(all_tids), uniq=len(seen_tids), dups=dup_recs)))
+
+
 class JsonErrorResponse(JsonResponse):
     def __init__(self, *args, status_code=500, **kwargs):
         super().__init__(*args, **kwargs)

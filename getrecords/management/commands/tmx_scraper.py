@@ -14,7 +14,8 @@ from getrecords.utils import model_to_dict
 from getrecords.view_logic import refresh_nb_players_inner
 
 
-AT_CHECK_BATCH_SIZE = 360
+# AT_CHECK_BATCH_SIZE = 360
+AT_CHECK_BATCH_SIZE = 200
 
 if LOCAL_DEV_MODE:
     AT_CHECK_BATCH_SIZE = 10
@@ -238,7 +239,7 @@ async def scrape_unbeaten_ats():
             track = all_tmx_maps[mapAT.Track_id]
             if track['TrackUID'] is None:
                 mapAT.Broken = True
-                logging.info(f"Checked AT found Broken: {track['TrackID']}")
+                logging.warn(f"Checked AT found Broken: {track['TrackID']}")
             else:
                 res = await get_map_records(track['TrackUID'])
                 if len(res['tops']) > 0:
@@ -250,10 +251,11 @@ async def scrape_unbeaten_ats():
                         if score <= track['AuthorTime']:
                             set_at_beaten(mapAT, track, world_tops)
                         try:
-                            await refresh_nb_players_inner(track['TrackUID'])
+                            await refresh_nb_players_inner(track['TrackUID'], updated_ago_min_secs=86400)
                         except Exception as e:
                             logging.warn(f"Exception refreshing nb players from tmx scraper for {mapAT}: {e}")
-                logging.info(f"Checked AT ({track['AuthorTime']} ms) for {track['TrackID']}: Beaten: {mapAT.AuthorTimeBeaten}, WR: {mapAT.WR}")#\n{res}")
+                if LOCAL_DEV_MODE:
+                    logging.info(f"Checked AT ({track['AuthorTime']} ms) for {track['TrackID']}: Beaten: {mapAT.AuthorTimeBeaten}, WR: {mapAT.WR}")#\n{res}")
             await mapAT.asave()
             count += 1
             if count >= AT_CHECK_BATCH_SIZE:
