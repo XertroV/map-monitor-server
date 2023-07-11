@@ -181,10 +181,7 @@ async def _add_maps_from_json(j: dict):
         track_id = map_j['TrackID']
         track_ids.append(track_id)
         try:
-            _map = TmxMap(**map_j)
-            # if not _map.Downloadable:
-            #     continue
-            await _map.asave()
+            await update_tmx_map(map_j)
         except Exception as e:
             logging.warn(f"Failed to save map: {map_j} -- exception: {e}")
             raise e
