@@ -22,10 +22,10 @@ from getrecords.s3 import upload_ghost_to_s3
 from getrecords.tmx_maps import get_tmx_tags_cached
 from getrecords.utils import model_to_dict, run_async, sha_256_b_ts
 
-from .models import Challenge, CotdQualiTimes, Ghost, MapTotalPlayers, TmxMap, TmxMapAT, Track, TrackStats, User, UserStats, UserTrackPlay
+from .models import CachedValue, Challenge, CotdQualiTimes, Ghost, MapTotalPlayers, TmxMap, TmxMapAT, Track, TrackStats, User, UserStats, UserTrackPlay
 from .nadeoapi import LOCAL_DEV_MODE, core_get_maps_by_uid, nadeo_get_nb_players_for_map, nadeo_get_surround_for_map
 import getrecords.nadeoapi as nadeoapi
-from .view_logic import NB_PLAYERS_CACHE_SECONDS, NB_PLAYERS_MAX_CACHE_SECONDS, refresh_nb_players_inner, QUALI_TIMES_CACHE_SECONDS
+from .view_logic import NB_PLAYERS_CACHE_SECONDS, NB_PLAYERS_MAX_CACHE_SECONDS, UNBEATEN_ATS_CV_NAME, get_unbeaten_ats_query, refresh_nb_players_inner, QUALI_TIMES_CACHE_SECONDS
 
 
 def json_resp(m: Model):
@@ -448,11 +448,18 @@ def tmx_count_at_map(request, map_id: int):
 
 
 def unbeaten_ats(request):
+    unbeaten_ats = CachedValue.objects.filter(name=UNBEATEN_ATS_CV_NAME).first()
+    if unbeaten_ats is not None:
+        return JsonResponse(json.loads(unbeaten_ats.value))
+    return JsonResponse(dict(error='not yet initialized'))
+
+
     tracks = list()
-    q = TmxMapAT.objects.filter(AuthorTimeBeaten=False, Broken=False, Track__MapType__contains="TM_Race").all().select_related('Track')\
-        .only('Track__TrackID', 'Track__TrackUID', 'Track__Name', 'Track__AuthorLogin', 'Track__Tags', 'Track__AuthorTime', 'Track__MapType', 'WR', 'LastChecked')\
-        .order_by('Track__TrackID')\
-        .distinct('Track__TrackID')
+    q = get_unbeaten_ats_query()
+    # q = TmxMapAT.objects.filter(AuthorTimeBeaten=False, Broken=False, Track__MapType__contains="TM_Race").all().select_related('Track')\
+    #     .only('Track__TrackID', 'Track__TrackUID', 'Track__Name', 'Track__AuthorLogin', 'Track__Tags', 'Track__AuthorTime', 'Track__MapType', 'WR', 'LastChecked')\
+    #     .order_by('Track__TrackID')\
+    #     .distinct('Track__TrackID')
     uids = list()
     keys = ['TrackID', 'TrackUID', 'Track_Name', 'AuthorLogin', 'Tags', 'MapType', 'AuthorTime', 'WR', 'LastChecked']
     for mapAT in q:

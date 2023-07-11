@@ -1,6 +1,6 @@
 
 import time
-from getrecords.models import MapTotalPlayers
+from getrecords.models import MapTotalPlayers, TmxMapAT
 from getrecords.nadeoapi import LOCAL_DEV_MODE, nadeo_get_nb_players_for_map
 from getrecords.utils import run_async
 
@@ -42,3 +42,12 @@ async def refresh_nb_players_inner(map_uid: str, updated_ago_min_secs=0) -> MapT
     mtp.updated_ts = time.time()
     await mtp.asave()
     return mtp
+
+
+def get_unbeaten_ats_query():
+    return TmxMapAT.objects.filter(AuthorTimeBeaten=False, Broken=False, Track__MapType__contains="TM_Race").all().select_related('Track')\
+        .only('Track__TrackID', 'Track__TrackUID', 'Track__Name', 'Track__AuthorLogin', 'Track__Tags', 'Track__AuthorTime', 'Track__MapType', 'WR', 'LastChecked')\
+        .order_by('Track__TrackID')\
+        .distinct('Track__TrackID')
+
+UNBEATEN_ATS_CV_NAME = "UnbeatenATs"

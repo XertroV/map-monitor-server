@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import time
 import traceback
@@ -7,11 +8,11 @@ from typing import Coroutine
 from django.core.management.base import BaseCommand, CommandError
 
 from getrecords.http import get_session
-from getrecords.models import TmxMap, TmxMapAT, TmxMapScrapeState
+from getrecords.models import CachedValue, MapTotalPlayers, TmxMap, TmxMapAT, TmxMapScrapeState
 from getrecords.nadeoapi import LOCAL_DEV_MODE, get_map_records
 from getrecords.tmx_maps import tmx_date_to_ts
 from getrecords.utils import model_to_dict
-from getrecords.view_logic import refresh_nb_players_inner
+from getrecords.view_logic import UNBEATEN_ATS_CV_NAME, get_unbeaten_ats_query, refresh_nb_players_inner
 
 
 # AT_CHECK_BATCH_SIZE = 360
@@ -72,13 +73,14 @@ async def run_tmx_scraper(state: TmxMapScrapeState, update_state: TmxMapScrapeSt
     while True:
         start = time.time()
         try:
-            if LOCAL_DEV_MODE:
-                await scrape_unbeaten_ats()
+            # if LOCAL_DEV_MODE:
+            #     await scrape_unbeaten_ats()
             latest_map = await get_latest_map_id()
             if latest_map > state.LastScraped:
                 await scrape_range(state, latest_map)
             await scrape_update_range(update_state)
             await scrape_unbeaten_ats()
+            await cache_unbeaten_ats()
             sduration = max(0, loop_seconds - (time.time() - start))
             logging.info(f"txm scraper sleeping for {sduration}s")
             await asyncio.sleep(sduration)
@@ -105,23 +107,26 @@ async def scrape_update_range(update_state: TmxMapScrapeState):
     oldest_update = max_time
     down_to = update_state.LastScraped
     page = 1
+    updated = list()
     while oldest_update > down_to:
         resp = await get_updated_maps(page)
         maps_page = resp['results']
         if len(maps_page) == 0:
             logging.warn(f"Got no more maps to update: page: {page}, oldest_update: {oldest_update}, down_to: {down_to}")
             break
-        else:
-            logging.info(f"Updating maps: {[t['TrackID'] for t in maps_page]}")
         total_items = resp['totalItemCount']
         logging.info(f"scrape update range: page: {page}, oldest_update: {oldest_update}, down_to: {down_to}")
         for track in maps_page:
+            oldest_update = tmx_date_to_ts(track['UpdatedAt'])
+            if tmx_date_to_ts(track['UpdatedAt']) < down_to:
+                break
             await update_tmx_map(track)
-        oldest_map = maps_page[-1]
-        oldest_update = tmx_date_to_ts(oldest_map['UpdatedAt'])
+            updated.append(track['TrackID'])
+        # oldest_map = maps_page[-1]
         page += 1
         await asyncio.sleep(.8)
 
+    logging.info(f"Updating maps: {updated}")
     update_state.LastScraped = max_time
     await update_state.asave()
 
@@ -280,6 +285,37 @@ def set_at_beaten(mapAT: TmxMapAT, track: TmxMap, world_tops: list[dict]):
     mapAT.ATBeatenUsers = ",".join(accounts)
     mapAT.ATBeatenTimestamp = time.time()
     mapAT.UploadedToNadeo = True
+
+
+async def cache_unbeaten_ats():
+    tracks = list()
+    q = get_unbeaten_ats_query()
+    uids = list()
+    keys = ['TrackID', 'TrackUID', 'Track_Name', 'AuthorLogin', 'Tags', 'MapType', 'AuthorTime', 'WR', 'LastChecked']
+    async for mapAT in q:
+        if "TM_Race" not in mapAT.Track.MapType: continue
+        tracks.append([mapAT.Track.TrackID, mapAT.Track.TrackUID, mapAT.Track.Name, mapAT.Track.AuthorLogin, mapAT.Track.Tags, mapAT.Track.MapType, mapAT.Track.AuthorTime, mapAT.WR, mapAT.LastChecked])
+        uids.append(mapAT.Track.TrackUID)
+    q = MapTotalPlayers.objects.filter(uid__in=uids)
+
+    nbPlayersMap = dict()
+    async for mtp in q:
+        nbPlayersMap[mtp.uid] = mtp.nb_players
+    keys.append('NbPlayers')
+    for track in tracks:
+        uid = track[1]
+        if uid in nbPlayersMap:
+            track.append(nbPlayersMap[uid])
+        else:
+            track.append(-1)
+
+    resp = dict(keys=keys, nbTracks=len(tracks), tracks=tracks)
+    cv = await CachedValue.objects.filter(name=UNBEATEN_ATS_CV_NAME).afirst()
+    if cv is None:
+        cv = CachedValue(name=UNBEATEN_ATS_CV_NAME, value="")
+    cv.value = json.dumps(resp)
+    await cv.asave()
+    logging.info(f"Cached unbeaten ATs; len={len(cv.value)}")
 
 
 # adsf

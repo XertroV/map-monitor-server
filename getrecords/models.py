@@ -233,3 +233,12 @@ class UserStats(models.Model):
     segmented_runs: int = models.IntegerField(default=0, db_index=True)
     unique_maps: int = models.IntegerField(default=0, db_index=True)
     total_time: int = models.IntegerField(default=0, db_index=True)
+
+
+
+
+class CachedValue(models.Model):
+    name = models.CharField(max_length=32, db_index=True, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    value = models.TextField()
