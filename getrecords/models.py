@@ -51,7 +51,7 @@ class TmxMapScrapeState(models.Model):
     LastScraped: int = models.IntegerField()
 
 class TmxMap(models.Model):
-    TrackID: int = models.IntegerField(db_index=True)
+    TrackID: int = models.IntegerField(db_index=True, unique=True)
     UserID: int = models.IntegerField(db_index=True)
     Username: str = models.CharField(max_length=32, db_index=True)
     AuthorLogin: str = models.CharField(max_length=64, db_index=True)
