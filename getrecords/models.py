@@ -144,6 +144,7 @@ class TmxMapAT(models.Model):
     Broken = models.BooleanField(default=False)
     WR = models.IntegerField(default=-1)
     WR_Player = models.CharField(default="", max_length=40)
+    RemovedFromTmx = models.BooleanField(default=False)
 
 
 

@@ -25,7 +25,7 @@ from getrecords.utils import model_to_dict, run_async, sha_256_b_ts
 from .models import CachedValue, Challenge, CotdQualiTimes, Ghost, MapTotalPlayers, TmxMap, TmxMapAT, Track, TrackStats, User, UserStats, UserTrackPlay
 from .nadeoapi import LOCAL_DEV_MODE, core_get_maps_by_uid, nadeo_get_nb_players_for_map, nadeo_get_surround_for_map
 import getrecords.nadeoapi as nadeoapi
-from .view_logic import NB_PLAYERS_CACHE_SECONDS, NB_PLAYERS_MAX_CACHE_SECONDS, UNBEATEN_ATS_CV_NAME, get_unbeaten_ats_query, refresh_nb_players_inner, QUALI_TIMES_CACHE_SECONDS
+from .view_logic import NB_PLAYERS_CACHE_SECONDS, NB_PLAYERS_MAX_CACHE_SECONDS, UNBEATEN_ATS_CV_NAME, get_tmx_map, get_unbeaten_ats_query, refresh_nb_players_inner, QUALI_TIMES_CACHE_SECONDS
 
 
 def json_resp(m: Model):
@@ -315,18 +315,6 @@ def tmx_map_still_public(m: TmxMap) -> bool:
         logging.warn(f"Exception checking if tmx map still public: {e}")
     return True
 
-async def get_tmx_map(tid: int):
-    async with get_session() as session:
-        try:
-            async with session.get(f"https://trackmania.exchange/api/maps/get_map_info/multi/{tid}", timeout=1.5) as resp:
-                if resp.status == 200:
-                    maps = (await resp.json())
-                    if len(maps) == 0: return None
-                    return maps[0]
-                else:
-                    raise Exception(f"Could not get map info for {tid}: {resp.status} code.")
-        except asyncio.TimeoutError as e:
-            raise Exception(f"TMX timeout for get map infos")
 
 def tmx_compat_mapsearch2(request: HttpRequest):
     # try twice in case of random exception
