@@ -11,6 +11,7 @@ from getrecords.http import get_session
 from getrecords.models import CachedValue, MapTotalPlayers, TmxMap, TmxMapAT, TmxMapScrapeState
 from getrecords.nadeoapi import LOCAL_DEV_MODE, get_map_records
 from getrecords.tmx_maps import tmx_date_to_ts
+from getrecords.unbeaten_ats import TMXIDS_UNBEATABLE_ATS
 from getrecords.utils import model_to_dict
 from getrecords.view_logic import UNBEATEN_ATS_CV_NAME, get_tmx_map, get_unbeaten_ats_query, refresh_nb_players_inner
 
@@ -224,7 +225,7 @@ async def scrape_unbeaten_ats():
         print(f"Initialized {len(to_init)} TmxMapATs")
 
         # now get ATs
-        q = TmxMapAT.objects.filter(AuthorTimeBeaten=False, Broken=False, RemovedFromTmx=False, Track__MapType__contains="TM_Race").order_by('LastChecked', 'Track_id')[:AT_CHECK_BATCH_SIZE]
+        q = TmxMapAT.objects.filter(AuthorTimeBeaten=False, Broken=False, RemovedFromTmx=False, Unbeatable=False, Track__MapType__contains="TM_Race").order_by('LastChecked', 'Track_id')[:AT_CHECK_BATCH_SIZE]
         count = 0
         mats: list[TmxMapAT] = list()
         async for mapAT in q:
@@ -239,9 +240,13 @@ async def scrape_unbeaten_ats():
                 logging.warn(f"skipping {mapAT.Track_id} id, not in all maps")
                 continue
             track = all_tmx_maps[mapAT.Track_id]
+            tid = track['TrackID']
             if track['TrackUID'] is None:
                 mapAT.Broken = True
                 logging.warn(f"Checked AT found Broken: {track['TrackID']}")
+            elif tid in TMXIDS_UNBEATABLE_ATS:
+                mapAT.Unbeatable = True
+                logging.warn(f"Found Unbeatable AT: {track['TrackID']}")
             else:
                 tmx_resp = await get_tmx_map(track['TrackID'])
                 if tmx_resp is None:
@@ -261,8 +266,8 @@ async def scrape_unbeaten_ats():
                                 await refresh_nb_players_inner(track['TrackUID'], updated_ago_min_secs=86400)
                             except Exception as e:
                                 logging.warn(f"Exception refreshing nb players from tmx scraper for {mapAT}: {e}")
-                if LOCAL_DEV_MODE:
-                    logging.info(f"Checked AT ({track['AuthorTime']} ms) for {track['TrackID']}: Beaten: {mapAT.AuthorTimeBeaten}, WR: {mapAT.WR}")#\n{res}")
+                    if LOCAL_DEV_MODE:
+                        logging.info(f"Checked AT ({track['AuthorTime']} ms) for {track['TrackID']}: Beaten: {mapAT.AuthorTimeBeaten}, WR: {mapAT.WR}")#\n{res}")
             await mapAT.asave()
             count += 1
             if count >= AT_CHECK_BATCH_SIZE:

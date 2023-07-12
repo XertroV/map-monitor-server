@@ -145,6 +145,7 @@ class TmxMapAT(models.Model):
     WR = models.IntegerField(default=-1)
     WR_Player = models.CharField(default="", max_length=40)
     RemovedFromTmx = models.BooleanField(default=False)
+    Unbeatable = models.BooleanField(default=False)
 
 
 
