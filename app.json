@@ -18,5 +18,10 @@
         "test": "python manage.py test"
       }
     }
+  },
+  "formation": {
+    "web": {
+      "max_parallel": 2
+    }
   }
 }
