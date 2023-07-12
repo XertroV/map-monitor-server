@@ -137,15 +137,16 @@ class TmxMap(models.Model):
 class TmxMapAT(models.Model):
     Track: TmxMap = models.OneToOneField("TmxMap", on_delete=models.CASCADE, db_index=True)
     UploadedToNadeo = models.BooleanField(default=False)
-    AuthorTimeBeaten = models.BooleanField(default=False)
+    AuthorTimeBeaten = models.BooleanField(default=False, db_index=True)
     ATBeatenTimestamp = models.IntegerField(default=-1)
     ATBeatenUsers = models.TextField(default="")
-    LastChecked = models.FloatField(default=0)
-    Broken = models.BooleanField(default=False)
+    ATBeatenFirstNb = models.IntegerField(default=-1, db_index=True)
+    LastChecked = models.FloatField(default=0, db_index=True)
+    Broken = models.BooleanField(default=False, db_index=True)
     WR = models.IntegerField(default=-1)
     WR_Player = models.CharField(default="", max_length=40)
-    RemovedFromTmx = models.BooleanField(default=False)
-    Unbeatable = models.BooleanField(default=False)
+    RemovedFromTmx = models.BooleanField(default=False, db_index=True)
+    Unbeatable = models.BooleanField(default=False, db_index=True)
 
 
 

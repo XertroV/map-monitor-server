@@ -13,14 +13,14 @@ from getrecords.nadeoapi import LOCAL_DEV_MODE, get_map_records
 from getrecords.tmx_maps import tmx_date_to_ts
 from getrecords.unbeaten_ats import TMXIDS_UNBEATABLE_ATS
 from getrecords.utils import model_to_dict
-from getrecords.view_logic import UNBEATEN_ATS_CV_NAME, get_tmx_map, get_unbeaten_ats_query, refresh_nb_players_inner
+from getrecords.view_logic import RECENTLY_BEATEN_ATS_CV_NAME, UNBEATEN_ATS_CV_NAME, get_recently_beaten_ats_query, get_tmx_map, get_unbeaten_ats_query, refresh_nb_players_inner
 
 
 # AT_CHECK_BATCH_SIZE = 360
 AT_CHECK_BATCH_SIZE = 200
 
 if LOCAL_DEV_MODE:
-    AT_CHECK_BATCH_SIZE = 10
+    AT_CHECK_BATCH_SIZE = 5
 
 
 class Command(BaseCommand):
@@ -74,7 +74,10 @@ async def run_tmx_scraper(state: TmxMapScrapeState, update_state: TmxMapScrapeSt
     while True:
         start = time.time()
         try:
-            # if LOCAL_DEV_MODE:
+            # to any fixes first (should be batched)
+            await fix_at_beaten_first_nb()
+            if LOCAL_DEV_MODE:
+                await cache_recently_beaten_ats()
             #     await scrape_unbeaten_ats()
             latest_map = await get_latest_map_id()
             if latest_map > state.LastScraped:
@@ -82,12 +85,14 @@ async def run_tmx_scraper(state: TmxMapScrapeState, update_state: TmxMapScrapeSt
             await scrape_update_range(update_state)
             await scrape_unbeaten_ats()
             await cache_unbeaten_ats()
+            await cache_recently_beaten_ats()
             sduration = max(0, loop_seconds - (time.time() - start))
             logging.info(f"txm scraper sleeping for {sduration}s")
             await asyncio.sleep(sduration)
         except Exception as e:
             sduration = max(0, loop_seconds - (time.time() - start))
             logging.warn(f"Exception in txm scraper: {e}. Sleeping for {sduration}s and trying again")
+            traceback.print_exc()
             await asyncio.sleep(sduration)
 
 async def scrape_range(state: TmxMapScrapeState, latest: int):
@@ -216,7 +221,7 @@ async def scrape_unbeaten_ats():
         async for mapAT in TmxMapAT.objects.all():
             at_rows_for.add(mapAT.Track_id)
         missing_maps = all_tmx_map_pks - at_rows_for
-        print(f"Missing: {len(missing_maps)}")
+        print(f"Missing # TmxMapATs: {len(missing_maps)}")
         # take at most AT_CHECK_BATCH_SIZE
         to_init = list(missing_maps)[:AT_CHECK_BATCH_SIZE]
         for pk in to_init:
@@ -248,7 +253,7 @@ async def scrape_unbeaten_ats():
                 mapAT.Unbeatable = True
                 logging.warn(f"Found Unbeatable AT: {track['TrackID']}")
             else:
-                tmx_resp = await get_tmx_map(track['TrackID'])
+                tmx_resp = await get_tmx_map(track['TrackID'], 5.0)
                 if tmx_resp is None:
                     mapAT.RemovedFromTmx = True
                     logging.warn(f"Detected map removed from TMX: {track['TrackUID']}")
@@ -287,11 +292,25 @@ def set_at_beaten(mapAT: TmxMapAT, track: TmxMap, world_tops: list[dict]):
     for record in world_tops:
         if record['score'] <= track['AuthorTime']:
             accounts.append(record['accountId'])
+    mapAT.ATBeatenFirstNb = len(accounts)
     mapAT.WR = world_tops[0]['score']
     mapAT.WR_Player = world_tops[0]['accountId']
     mapAT.ATBeatenUsers = ",".join(accounts)
     mapAT.ATBeatenTimestamp = time.time()
     mapAT.UploadedToNadeo = True
+
+
+async def fix_at_beaten_first_nb():
+    q = TmxMapAT.objects.filter(ATBeatenFirstNb=-1, AuthorTimeBeaten=True)
+    toupdate = []
+    async for mapAT in q[:1000]:
+        mapAT.ATBeatenFirstNb = len(mapAT.ATBeatenUsers.split(","))
+        toupdate.append(mapAT)
+    if len(toupdate) == 0: return
+    logging.info(f"{time.time()} Fixing {len(toupdate)} mapATs for ATBeatenFirstNb")
+    await TmxMapAT.objects.abulk_update(toupdate, ['ATBeatenFirstNb'])
+    logging.info(f"{time.time()} Fixed {len(toupdate)} mapATs for ATBeatenFirstNb")
+
 
 
 async def cache_unbeaten_ats():
@@ -324,5 +343,41 @@ async def cache_unbeaten_ats():
     await cv.asave()
     logging.info(f"Cached unbeaten ATs; len={len(cv.value)} / {len(tracks)}")
 
+async def cache_recently_beaten_ats():
+    logging.info(f"unbeaten start")
+    tracks = []
+    uids = []
+    nbPlayersMap = dict()
+    keys = ['TrackID', 'TrackUID', 'Track_Name', 'AuthorLogin', 'Tags', 'MapType', 'AuthorTime', 'WR', 'LastChecked', "ATBeatenTimestamp", "ATBeatenUsers", "NbPlayers"]
+
+    logging.info(f"unbeaten start - query")
+    q = get_recently_beaten_ats_query()
+    logging.info(f"unbeaten start - got query")
+    async for mapAT in q:
+        if "TM_Race" not in mapAT.Track.MapType: continue
+        tracks.append([mapAT.Track.TrackID, mapAT.Track.TrackUID, mapAT.Track.Name, mapAT.Track.AuthorLogin, mapAT.Track.Tags, mapAT.Track.MapType, mapAT.Track.AuthorTime, mapAT.WR, mapAT.LastChecked, mapAT.ATBeatenTimestamp, mapAT.ATBeatenUsers])
+        uids.append(mapAT.Track.TrackUID)
+    logging.info(f"Got unbeaten tracks: {len(tracks)}")
+    q = MapTotalPlayers.objects.filter(uid__in=uids)
+    async for mtp in q:
+        nbPlayersMap[mtp.uid] = mtp.nb_players
+    logging.info(f"Got nb players for: {len(nbPlayersMap)}")
+    for track in tracks:
+        uid = track[1]
+        nbPlayers = -2
+        if uid in nbPlayersMap:
+            nbPlayers = nbPlayersMap[uid]
+        else:
+            nbPlayers = (await refresh_nb_players_inner(uid, 86400)).nb_players
+        track.append(nbPlayers)
+    logging.info(f"Patched with nb players")
+
+    resp = dict(keys=keys, nbTracks=len(tracks), tracks=tracks)
+    cv = await CachedValue.objects.filter(name=RECENTLY_BEATEN_ATS_CV_NAME).afirst()
+    if cv is None:
+        cv = CachedValue(name=RECENTLY_BEATEN_ATS_CV_NAME, value="")
+    cv.value = json.dumps(resp)
+    await cv.asave()
+    logging.info(f"Cached recently beaten ATs; len={len(cv.value)} / {len(tracks)}")
 
 # adsf

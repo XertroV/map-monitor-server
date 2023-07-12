@@ -36,6 +36,8 @@ SECRET_KEY = env('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env('MAP_MONITOR_LOCAL_DEV', default='False').lower() == 'true'
+if DEBUG:
+    logging.basicConfig(level=logging.DEBUG)
 
 ALLOWED_HOSTS = ['*', 'map-monitor.xk.io']
 

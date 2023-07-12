@@ -52,13 +52,20 @@ def get_unbeaten_ats_query():
         .order_by('Track__TrackID')\
         .distinct('Track__TrackID')
 
+def get_recently_beaten_ats_query(nb=50):
+    return TmxMapAT.objects.filter(AuthorTimeBeaten=True, ATBeatenFirstNb=1, Track__MapType__contains="TM_Race").all().select_related('Track')\
+        .only('Track__TrackID', 'Track__TrackUID', 'Track__Name', 'Track__AuthorLogin', 'Track__Tags', 'Track__AuthorTime', 'Track__MapType',
+              'WR', 'LastChecked', 'ATBeatenTimestamp', 'ATBeatenUsers')\
+        .order_by('-ATBeatenTimestamp')[:nb]
+
 UNBEATEN_ATS_CV_NAME = "UnbeatenATs"
+RECENTLY_BEATEN_ATS_CV_NAME = "RecentlyBeatenATs"
 
 
-async def get_tmx_map(tid: int):
+async def get_tmx_map(tid: int, timeout=1.5):
     async with get_session() as session:
         try:
-            async with session.get(f"https://trackmania.exchange/api/maps/get_map_info/multi/{tid}", timeout=1.5) as resp:
+            async with session.get(f"https://trackmania.exchange/api/maps/get_map_info/multi/{tid}", timeout=timeout) as resp:
                 if resp.status == 200:
                     maps = (await resp.json())
                     if len(maps) == 0: return None

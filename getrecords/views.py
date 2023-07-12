@@ -25,7 +25,7 @@ from getrecords.utils import model_to_dict, run_async, sha_256_b_ts
 from .models import CachedValue, Challenge, CotdQualiTimes, Ghost, MapTotalPlayers, TmxMap, TmxMapAT, Track, TrackStats, User, UserStats, UserTrackPlay
 from .nadeoapi import LOCAL_DEV_MODE, core_get_maps_by_uid, nadeo_get_nb_players_for_map, nadeo_get_surround_for_map
 import getrecords.nadeoapi as nadeoapi
-from .view_logic import NB_PLAYERS_CACHE_SECONDS, NB_PLAYERS_MAX_CACHE_SECONDS, UNBEATEN_ATS_CV_NAME, get_tmx_map, get_unbeaten_ats_query, refresh_nb_players_inner, QUALI_TIMES_CACHE_SECONDS
+from .view_logic import NB_PLAYERS_CACHE_SECONDS, NB_PLAYERS_MAX_CACHE_SECONDS, RECENTLY_BEATEN_ATS_CV_NAME, UNBEATEN_ATS_CV_NAME, get_tmx_map, get_unbeaten_ats_query, refresh_nb_players_inner, QUALI_TIMES_CACHE_SECONDS
 
 
 def json_resp(m: Model):
@@ -442,42 +442,18 @@ def unbeaten_ats(request):
     return JsonResponse(dict(error='not yet initialized'))
 
 
-    tracks = list()
-    q = get_unbeaten_ats_query()
-    # q = TmxMapAT.objects.filter(AuthorTimeBeaten=False, Broken=False, Track__MapType__contains="TM_Race").all().select_related('Track')\
-    #     .only('Track__TrackID', 'Track__TrackUID', 'Track__Name', 'Track__AuthorLogin', 'Track__Tags', 'Track__AuthorTime', 'Track__MapType', 'WR', 'LastChecked')\
-    #     .order_by('Track__TrackID')\
-    #     .distinct('Track__TrackID')
-    uids = list()
-    keys = ['TrackID', 'TrackUID', 'Track_Name', 'AuthorLogin', 'Tags', 'MapType', 'AuthorTime', 'WR', 'LastChecked']
-    for mapAT in q:
-        if "TM_Race" not in mapAT.Track.MapType: continue
-        tracks.append([mapAT.Track.TrackID, mapAT.Track.TrackUID, mapAT.Track.Name, mapAT.Track.AuthorLogin, mapAT.Track.Tags, mapAT.Track.MapType, mapAT.Track.AuthorTime, mapAT.WR, mapAT.LastChecked])
-        uids.append(mapAT.Track.TrackUID)
-    q = MapTotalPlayers.objects.filter(uid__in=uids)
-
-    nbPlayersMap = dict()
-    for mtp in q:
-        nbPlayersMap[mtp.uid] = mtp.nb_players
-    keys.append('NbPlayers')
-    for track in tracks:
-        uid = track[1]
-        if uid in nbPlayersMap:
-            track.append(nbPlayersMap[uid])
-        else:
-            track.append(-1)
-
-    # tracks.sort()
-
-    resp = dict(keys=keys, nbTracks=len(tracks), tracks=tracks)
-    # cache.clear()
-    return JsonResponse(resp)
+def recently_beaten_ats(request):
+    beaten_ats = CachedValue.objects.filter(name=RECENTLY_BEATEN_ATS_CV_NAME).first()
+    if beaten_ats is not None:
+        return JsonResponse(json.loads(beaten_ats.value))
+    return JsonResponse(dict(error='not yet initialized'))
 
 
 
 
 
 def debug_nb_dup_tids(request):
+    return
     all_tids = list(TmxMap.objects.only('TrackID', 'UpdateTimestamp').order_by('TrackID', '-UpdateTimestamp', 'id'))
     seen_tids = set()
     dup_recs: list[dict] = list()
