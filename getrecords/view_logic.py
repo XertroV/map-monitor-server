@@ -98,6 +98,8 @@ async def update_tmx_map(j: dict):
     _map = await TmxMap.objects.filter(TrackID=tid).afirst()
 
     tmp_map = TmxMap(**j)
+    if _map is None:
+        await tmp_map.asave()
     if _map is not None:
-        tmp_map.pk = _map.pk
-    await tmp_map.asave()
+        TmxMap.RemoveKeysFromTMX(j)
+        await TmxMap.objects.filter(TrackID=tid).aupdate(**j)

@@ -50,6 +50,10 @@ class TmxMapScrapeState(models.Model):
     Name: str = models.CharField(max_length=16)
     LastScraped: int = models.IntegerField()
 
+
+TMX_MAP_REMOVE_KEYS = ['Lightmap', 'UnlimiterRequired', 'MappackID', 'HasGhostBlocks', 'EmbeddedObjectsCount', 'EmbeddedItemsSize', 'AuthorCount', 'SizeWarning', 'CommentCount', 'ReplayCount', 'VideoCount']
+
+
 class TmxMap(models.Model):
     TrackID: int = models.IntegerField(db_index=True, unique=True)
     UserID: int = models.IntegerField(db_index=True)
@@ -127,16 +131,19 @@ class TmxMap(models.Model):
             kwargs['UpdateTimestamp'] = tmx_date_to_ts(kwargs['UpdatedAt'])
             kwargs['DifficultyInt'] = difficulty_to_int(kwargs["DifficultyName"])
 
-            remove_keys = ['Lightmap', 'UnlimiterRequired', 'MappackID', 'HasGhostBlocks', 'EmbeddedObjectsCount', 'EmbeddedItemsSize', 'AuthorCount', 'SizeWarning', 'CommentCount', 'ReplayCount', 'VideoCount']
-
-            for k in remove_keys:
-                if k in kwargs:
-                    del kwargs[k]
+            TmxMap.RemoveKeysFromTMX(kwargs)
 
             kwargs['LengthSecs'] = LengthSecs
             kwargs['LengthName'] = LengthName
 
         super().__init__(*args, **kwargs)
+
+    @staticmethod
+    def RemoveKeysFromTMX(kwargs):
+        for k in TMX_MAP_REMOVE_KEYS:
+            if k in kwargs:
+                del kwargs[k]
+
 
 
 class TmxMapAT(models.Model):
