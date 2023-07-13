@@ -1,6 +1,8 @@
 import asyncio
 from dataclasses import dataclass
 import logging
+import math
+import random
 import time
 from aiohttp import BasicAuth
 
@@ -99,7 +101,7 @@ def all_tokens() -> list[NadeoToken | None]:
 def tokens_need_reacquire() -> bool:
     for t in all_tokens():
         if t is None: return True
-        if check_refresh_after(t): return True
+        if check_refresh_after(t, 150.0 + 200.0 * random.random()): return True
     return False
 
 async def reacquire_token(for_name: str, force=False) -> NadeoToken:
@@ -152,9 +154,9 @@ async def reacquire_all_tokens(force=False):
     #     logging.warn(f"Got live token: {NadeoLiveToken.accessToken}")
 
 
-def check_refresh_after(t: NadeoToken) -> bool:
+def check_refresh_after(t: NadeoToken, buffer_seconds: float = 0.0) -> bool:
     if t is None: return True
-    return t.accessTokenJson.get('rat') < time.time()
+    return t.accessTokenJson.get('rat') < (time.time() + buffer_seconds)
 
 
 NADEO_SVC_AUTH_STARTED = False
