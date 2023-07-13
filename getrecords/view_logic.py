@@ -1,8 +1,9 @@
 
 import asyncio
+import logging
 import time
 from getrecords.http import get_session
-from getrecords.models import MapTotalPlayers, TmxMapAT
+from getrecords.models import MapTotalPlayers, TmxMap, TmxMapAT
 from getrecords.nadeoapi import LOCAL_DEV_MODE, nadeo_get_nb_players_for_map
 from getrecords.utils import run_async
 
@@ -87,3 +88,16 @@ async def get_tmx_map_pack_maps(mpid: int):
                     raise Exception(f"Could not get mappack maps for {mpid}: {resp.status} code.")
         except asyncio.TimeoutError as e:
             raise Exception(f"TMX timeout for get mappack maps {mpid}")
+
+
+async def update_tmx_map(j: dict):
+    tid = j.get('TrackID', -1)
+    if (tid < 0):
+        logging.warn(f"Update tmx map given bad data: {j}")
+        return
+    _map = await TmxMap.objects.filter(TrackID=tid).afirst()
+
+    tmp_map = TmxMap(**j)
+    if _map is not None:
+        tmp_map.pk = _map.pk
+    await tmp_map.asave()

@@ -12,8 +12,8 @@ from getrecords.models import CachedValue, MapTotalPlayers, TmxMap, TmxMapAT, Tm
 from getrecords.nadeoapi import LOCAL_DEV_MODE, get_map_records
 from getrecords.tmx_maps import tmx_date_to_ts
 from getrecords.unbeaten_ats import TMXIDS_UNBEATABLE_ATS
-from getrecords.utils import model_to_dict
-from getrecords.view_logic import RECENTLY_BEATEN_ATS_CV_NAME, UNBEATEN_ATS_CV_NAME, get_recently_beaten_ats_query, get_tmx_map, get_unbeaten_ats_query, refresh_nb_players_inner
+from getrecords.utils import chunk, model_to_dict
+from getrecords.view_logic import RECENTLY_BEATEN_ATS_CV_NAME, UNBEATEN_ATS_CV_NAME, get_recently_beaten_ats_query, get_tmx_map, get_unbeaten_ats_query, refresh_nb_players_inner, update_tmx_map
 
 
 # AT_CHECK_BATCH_SIZE = 360
@@ -25,14 +25,14 @@ if LOCAL_DEV_MODE:
 
 class Command(BaseCommand):
     help = "Run the tmx scraper"
+    loop = asyncio.new_event_loop()
 
     # def add_arguments(self, parser):
     #     parser.add_argument("poll_ids", nargs="+", type=int)
 
     def _run_async(self, coro: Coroutine):
-        loop = asyncio.new_event_loop()
-        task = loop.create_task(coro)
-        loop.run_until_complete(task)
+        task = self.loop.create_task(coro)
+        self.loop.run_until_complete(task)
         return task.result()
 
     def handle(self, *args, **options):
@@ -40,6 +40,7 @@ class Command(BaseCommand):
         print(f"Starting TMX Scraper")
         state = get_scrape_state()
         update_state = get_update_scrape_state()
+        self.loop.create_task(check_tmx_unbeaten_loop())
         self._run_async(run_tmx_scraper(state, update_state))
 
         pass
@@ -194,20 +195,6 @@ async def _add_maps_from_json(j: dict):
         # logging.info(f"Saved tmx map: {track_id}")
     logging.info(f"Saved tmx maps: {track_ids}")
 
-async def update_tmx_map(j: dict):
-    tid = j.get('TrackID', -1)
-    if (tid < 0):
-        logging.warn(f"Update tmx map given bad data: {j}")
-        return
-    _map = await TmxMap.objects.filter(TrackID=tid).afirst()
-
-    tmp_map = TmxMap(**j)
-    if _map is not None:
-        tmp_map.pk = _map.pk
-    await tmp_map.asave()
-
-
-
 
 async def scrape_unbeaten_ats():
     try:
@@ -253,26 +240,22 @@ async def scrape_unbeaten_ats():
                 mapAT.Unbeatable = True
                 logging.warn(f"Found Unbeatable AT: {track['TrackID']}")
             else:
-                tmx_resp = await get_tmx_map(track['TrackID'], 5.0)
-                if tmx_resp is None:
-                    mapAT.RemovedFromTmx = True
-                    logging.warn(f"Detected map removed from TMX: {track['TrackUID']}")
-                else:
-                    res = await get_map_records(track['TrackUID'])
-                    if len(res['tops']) > 0:
-                        world_tops = res['tops'][0]['top']
-                        if len(world_tops) > 0:
-                            wr = world_tops[0]
-                            score = wr['score']
-                            mapAT.WR = score
-                            if score <= track['AuthorTime']:
-                                set_at_beaten(mapAT, track, world_tops)
-                            try:
-                                await refresh_nb_players_inner(track['TrackUID'], updated_ago_min_secs=86400)
-                            except Exception as e:
-                                logging.warn(f"Exception refreshing nb players from tmx scraper for {mapAT}: {e}")
-                    if LOCAL_DEV_MODE:
-                        logging.info(f"Checked AT ({track['AuthorTime']} ms) for {track['TrackID']}: Beaten: {mapAT.AuthorTimeBeaten}, WR: {mapAT.WR}")#\n{res}")
+                # todo: scan tmx for removed maps somewhere else
+                res = await get_map_records(track['TrackUID'])
+                if len(res['tops']) > 0:
+                    world_tops = res['tops'][0]['top']
+                    if len(world_tops) > 0:
+                        wr = world_tops[0]
+                        score = wr['score']
+                        mapAT.WR = score
+                        if score <= track['AuthorTime']:
+                            set_at_beaten(mapAT, track, world_tops)
+                        try:
+                            await refresh_nb_players_inner(track['TrackUID'], updated_ago_min_secs=86400)
+                        except Exception as e:
+                            logging.warn(f"Exception refreshing nb players from tmx scraper for {mapAT}: {e}")
+                if LOCAL_DEV_MODE:
+                    logging.info(f"Checked AT ({track['AuthorTime']} ms) for {track['TrackID']}: Beaten: {mapAT.AuthorTimeBeaten}, WR: {mapAT.WR}")#\n{res}")
             await mapAT.asave()
             count += 1
             if count >= AT_CHECK_BATCH_SIZE:
@@ -298,6 +281,18 @@ def set_at_beaten(mapAT: TmxMapAT, track: TmxMap, world_tops: list[dict]):
     mapAT.ATBeatenUsers = ",".join(accounts)
     mapAT.ATBeatenTimestamp = time.time()
     mapAT.UploadedToNadeo = True
+
+
+def set_at_beaten_replay(mapAT: TmxMapAT, newTrack: dict):
+    if newTrack["ReplayWRTime"] > newTrack["AuthorTime"]: return
+    mapAT.AuthorTimeBeaten = True
+    accounts = [newTrack["ReplayWRUsername"] + " (TMX)"]
+    mapAT.ATBeatenFirstNb = len(accounts)
+    mapAT.WR = newTrack["ReplayWRTime"]
+    mapAT.WR_Player = newTrack["ReplayWRUsername"] + " (TMX)"
+    mapAT.ATBeatenUsers = ",".join(accounts)
+    mapAT.ATBeatenTimestamp = time.time()
+    # mapAT.UploadedToNadeo = True
 
 
 async def fix_at_beaten_first_nb():
@@ -381,3 +376,71 @@ async def cache_recently_beaten_ats():
     logging.info(f"Cached recently beaten ATs; len={len(cv.value)} / {len(tracks)}")
 
 # adsf
+
+
+
+
+
+
+
+
+
+
+async def check_tmx_unbeaten_loop():
+    sleep_len = 86400 // 4
+    while True:
+        start = time.time()
+        await run_check_tmx_unbeaten_removed_updated()
+        await asyncio.sleep(sleep_len - (time.time() - start))
+
+
+
+async def run_check_tmx_unbeaten_removed_updated():
+    q = get_unbeaten_ats_query()
+    tids = []
+    tid_to_mapAT = dict()
+    async for mapAT in q:
+        tids.append(mapAT.Track.TrackID)
+        tid_to_mapAT[mapAT.Track.TrackID] = mapAT
+
+    for _batch_ids in chunk(tids, 30):
+        batch_ids = list(_batch_ids)
+        logging.info(f"run_check_tmx_unbeaten_removed_updated: {batch_ids}")
+        batch_resp = await get_maps_from_tmx(batch_ids)
+        resp_ids = [t['TrackID'] for t in batch_resp]
+        removed = set(batch_ids) - set(resp_ids)
+        if len(removed) > 0:
+            logging.info(f"Marking {len(removed)} mapAT records removed from TMX")
+        for tid in removed:
+            tid_to_mapAT[tid].RemovedFromTmx = True
+            await tid_to_mapAT[tid].asave()
+
+        saved_offline_wrs = []
+        for t in batch_resp:
+            tid = t['TrackID']
+            wrTime = t.get("ReplayWRTime", None)
+            if wrTime is None: continue
+            if wrTime <= t['AuthorTime']:
+                set_at_beaten_replay(tid_to_mapAT[tid], t)
+                await tid_to_mapAT[tid].asave()
+                saved_offline_wrs.append(tid)
+                await update_tmx_map(t)
+
+        if len(saved_offline_wrs) > 0:
+            logging.info(f"Marked {len(saved_offline_wrs)} as having AT beaten offline.")
+
+        await asyncio.sleep(.5)
+
+
+async def get_maps_from_tmx(tids_or_uids: list[int | str]) -> list[dict]:
+    tids_str = ','.join(map(str, tids_or_uids))
+    async with get_session() as session:
+        try:
+            async with session.get(f"https://trackmania.exchange/api/maps/get_map_info/multi/{tids_str}", timeout=10.0) as resp:
+                if resp.status == 200:
+                    return await resp.json()
+                else:
+                    print(f"RETRY ME: {tids_str}")
+                    raise Exception(f"Could not get map infos: {resp.status} code.")
+        except asyncio.TimeoutError as e:
+            raise Exception(f"TMX timeout for get map infos")
