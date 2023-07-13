@@ -99,9 +99,10 @@ def all_tokens() -> list[NadeoToken | None]:
     return [NadeoLiveToken, NadeoCoreToken, NadeoClubToken]
 
 def tokens_need_reacquire() -> bool:
+    buffer_seconds = 150.0 + 200.0 * random.random()
     for t in all_tokens():
         if t is None: return True
-        if check_refresh_after(t, 150.0 + 200.0 * random.random()): return True
+        if check_refresh_after(t, buffer_seconds): return True
     return False
 
 async def reacquire_token(for_name: str, force=False) -> NadeoToken:
