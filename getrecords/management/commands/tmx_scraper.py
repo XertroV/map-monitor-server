@@ -453,9 +453,6 @@ async def run_check_tmx_unbeaten_removed_updated():
         tids.append(mapAT.Track.TrackID)
         tid_to_mapAT[mapAT.Track.TrackID] = mapAT
 
-    if 92378 not in tids:
-        logging.warn(f"92378 not found in tids from unbeaten ats query!?")
-
     for _batch_ids in chunk(tids, 30):
         batch_ids = list(_batch_ids)
         logging.info(f"run_check_tmx_unbeaten_removed_updated: {len(batch_ids)}, has debug: {92378 in batch_ids}")
@@ -478,11 +475,6 @@ async def run_check_tmx_unbeaten_removed_updated():
                 await tid_to_mapAT[tid].asave()
                 saved_offline_wrs.append(tid)
             # save every map to get updated UIDs or things
-
-            if tid == 92378:
-                logging.info(f"tid 92378")
-                logging.info(f"tmx uid: {t['TrackUID']}")
-                logging.info(f"existing uid: {tid_to_mapAT[tid].Track.TrackUID}")
             await update_tmx_map(t)
 
         if len(saved_offline_wrs) > 0:
