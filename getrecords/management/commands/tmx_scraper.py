@@ -409,7 +409,7 @@ async def run_check_tmx_unbeaten_removed_updated():
 
     for _batch_ids in chunk(tids, 30):
         batch_ids = list(_batch_ids)
-        logging.info(f"run_check_tmx_unbeaten_removed_updated: {(batch_ids)}, has debug: {92378 in batch_ids}")
+        logging.info(f"run_check_tmx_unbeaten_removed_updated: {len(batch_ids)}, has debug: {92378 in batch_ids}")
         batch_resp = await get_maps_from_tmx(batch_ids)
         resp_ids = [t['TrackID'] for t in batch_resp]
         removed = set(batch_ids) - set(resp_ids)
