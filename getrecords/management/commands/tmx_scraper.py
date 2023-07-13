@@ -423,8 +423,7 @@ async def run_check_tmx_unbeaten_removed_updated():
         for t in batch_resp:
             tid = t['TrackID']
             wrTime = t.get("ReplayWRTime", None)
-            if wrTime is None: continue
-            if wrTime <= t['AuthorTime']:
+            if wrTime is not None and wrTime <= t['AuthorTime']:
                 set_at_beaten_replay(tid_to_mapAT[tid], t)
                 await tid_to_mapAT[tid].asave()
                 saved_offline_wrs.append(tid)
