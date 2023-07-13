@@ -321,8 +321,11 @@ async def replay_exists_on_tmx(replayID: int) -> bool:
             async with session.get(f"https://trackmania.exchange/api/replays/get_replay_info/{replayID}", timeout=10.0) as resp:
                 if resp.status == 200:
                     # returns 200 with 0 length for nonexistent replays?
-                    j = await resp.json()
-                    return j["ReplayID"] == replayID
+                    try:
+                        j = await resp.json()
+                        return j["ReplayID"] == replayID
+                    except Exception as e:
+                        return False
                     # return await resp.json()
                 return False
         except asyncio.TimeoutError as e:
