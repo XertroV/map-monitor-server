@@ -512,7 +512,7 @@ async def fix_tmx_records():
 
 
     q = TmxMapAT.objects.filter(
-        ATBeatenUsers__contains=" (TMX)", TmxReplayVerified=True, ATBeatenOnTMX=False
+        ATBeatenUsers__contains=" (TMX)", TmxReplayVerified=True, ATBeatenOnTmx=False
     )
     async for mapAT in q:
         mapAT.ATBeatenOnTmx = True
