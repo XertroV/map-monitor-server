@@ -48,7 +48,7 @@ async def refresh_nb_players_inner(map_uid: str, updated_ago_min_secs=0) -> MapT
 
 
 def get_unbeaten_ats_query():
-    return TmxMapAT.objects.filter(AuthorTimeBeaten=False, Broken=False, RemovedFromTmx=False, Unbeatable=False, Unreleased=False, Track__MapType__contains="TM_Race").all().select_related('Track')\
+    return TmxMapAT.objects.filter(AuthorTimeBeaten=False, Broken=False, RemovedFromTmx=False, Unbeatable=False, Track__Unreleased=False, Track__MapType__contains="TM_Race").all().select_related('Track')\
         .only('Track__TrackID', 'Track__TrackUID', 'Track__Name', 'Track__AuthorLogin', 'Track__Tags', 'Track__AuthorTime', 'Track__MapType', 'WR', 'LastChecked')\
         .order_by('Track__TrackID')\
         .distinct('Track__TrackID')
