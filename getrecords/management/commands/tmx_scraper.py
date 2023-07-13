@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+from multiprocessing.managers import BaseManager
 import time
 import traceback
 from typing import Coroutine
@@ -341,14 +342,28 @@ async def cache_unbeaten_ats():
 
 async def cache_recently_beaten_ats():
     logging.info(f"unbeaten start")
+    keys = ['TrackID', 'TrackUID', 'Track_Name', 'AuthorLogin', 'Tags', 'MapType', 'AuthorTime', 'WR', 'LastChecked', "ATBeatenTimestamp", "ATBeatenUsers", "NbPlayers"]
+
+    tracks = await gen_recently_beaten_from_query(get_recently_beaten_ats_query()[:50])
+
+    tracks100k = await gen_recently_beaten_from_query(
+            get_recently_beaten_ats_query().filter(Track__TrackID__lte=100_000)[:50]
+        )
+
+    resp = dict(keys=keys, all=dict(nbTracks=len(tracks), tracks=tracks),
+                below100k=dict(nbTracks=len(tracks100k), tracks=tracks100k))
+    cv = await CachedValue.objects.filter(name=RECENTLY_BEATEN_ATS_CV_NAME).afirst()
+    if cv is None:
+        cv = CachedValue(name=RECENTLY_BEATEN_ATS_CV_NAME, value="")
+    cv.value = json.dumps(resp)
+    await cv.asave()
+    logging.info(f"Cached recently beaten ATs; len={len(cv.value)} / {len(tracks)}")
+
+
+async def gen_recently_beaten_from_query(q: 'BaseManager[TmxMapAT]'):
     tracks = []
     uids = []
     nbPlayersMap = dict()
-    keys = ['TrackID', 'TrackUID', 'Track_Name', 'AuthorLogin', 'Tags', 'MapType', 'AuthorTime', 'WR', 'LastChecked', "ATBeatenTimestamp", "ATBeatenUsers", "NbPlayers"]
-
-    logging.info(f"unbeaten start - query")
-    q = get_recently_beaten_ats_query()
-    logging.info(f"unbeaten start - got query")
     async for mapAT in q:
         if "TM_Race" not in mapAT.Track.MapType: continue
         tracks.append([mapAT.Track.TrackID, mapAT.Track.TrackUID, mapAT.Track.Name, mapAT.Track.AuthorLogin, mapAT.Track.Tags, mapAT.Track.MapType, mapAT.Track.AuthorTime, mapAT.WR, mapAT.LastChecked, mapAT.ATBeatenTimestamp, mapAT.ATBeatenUsers])
@@ -366,19 +381,7 @@ async def cache_recently_beaten_ats():
         else:
             nbPlayers = (await refresh_nb_players_inner(uid, 86400)).nb_players
         track.append(nbPlayers)
-    logging.info(f"Patched with nb players")
-
-    resp = dict(keys=keys, nbTracks=len(tracks), tracks=tracks)
-    cv = await CachedValue.objects.filter(name=RECENTLY_BEATEN_ATS_CV_NAME).afirst()
-    if cv is None:
-        cv = CachedValue(name=RECENTLY_BEATEN_ATS_CV_NAME, value="")
-    cv.value = json.dumps(resp)
-    await cv.asave()
-    logging.info(f"Cached recently beaten ATs; len={len(cv.value)} / {len(tracks)}")
-
-# adsf
-
-
+    return tracks
 
 
 

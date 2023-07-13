@@ -53,11 +53,11 @@ def get_unbeaten_ats_query():
         .order_by('Track__TrackID')\
         .distinct('Track__TrackID')
 
-def get_recently_beaten_ats_query(nb=50):
+def get_recently_beaten_ats_query():
     return TmxMapAT.objects.filter(AuthorTimeBeaten=True, ATBeatenFirstNb=1, Track__MapType__contains="TM_Race").all().select_related('Track')\
         .only('Track__TrackID', 'Track__TrackUID', 'Track__Name', 'Track__AuthorLogin', 'Track__Tags', 'Track__AuthorTime', 'Track__MapType',
               'WR', 'LastChecked', 'ATBeatenTimestamp', 'ATBeatenUsers')\
-        .order_by('-ATBeatenTimestamp')[:nb]
+        .order_by('-ATBeatenTimestamp')
 
 UNBEATEN_ATS_CV_NAME = "UnbeatenATs"
 RECENTLY_BEATEN_ATS_CV_NAME = "RecentlyBeatenATs"
