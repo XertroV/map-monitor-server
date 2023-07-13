@@ -159,7 +159,8 @@ class TmxMapAT(models.Model):
     WR_Player = models.CharField(default="", max_length=40)
     RemovedFromTmx = models.BooleanField(default=False, db_index=True)
     Unbeatable = models.BooleanField(default=False, db_index=True)
-
+    TmxReplayVerified = models.BooleanField(default=False, db_index=True)
+    ATBeatenOnTmx = models.BooleanField(default=False, db_index=True)
 
 
 

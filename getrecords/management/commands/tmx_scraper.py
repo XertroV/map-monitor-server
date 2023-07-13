@@ -79,6 +79,7 @@ async def run_tmx_scraper(state: TmxMapScrapeState, update_state: TmxMapScrapeSt
         try:
             # to any fixes first (should be batched)
             await fix_at_beaten_first_nb()
+            await fix_tmx_records()
             if LOCAL_DEV_MODE:
                 await cache_recently_beaten_ats()
             #     await scrape_unbeaten_ats()
@@ -286,6 +287,7 @@ def set_at_beaten(mapAT: TmxMapAT, track: TmxMap, world_tops: list[dict]):
 
 
 def set_at_beaten_replay(mapAT: TmxMapAT, newTrack: dict):
+
     if newTrack["ReplayWRTime"] > newTrack["AuthorTime"]: return
     mapAT.AuthorTimeBeaten = True
     accounts = [newTrack["ReplayWRUsername"] + " (TMX)"]
@@ -295,6 +297,37 @@ def set_at_beaten_replay(mapAT: TmxMapAT, newTrack: dict):
     mapAT.ATBeatenUsers = ",".join(accounts)
     mapAT.ATBeatenTimestamp = time.time()
     # mapAT.UploadedToNadeo = True
+
+def unset_at_beaten_replay(mapAT: TmxMapAT):
+    mapAT.AuthorTimeBeaten = False
+    mapAT.ATBeatenFirstNb = -1
+    mapAT.WR = -1
+    mapAT.WR_Player = ""
+    mapAT.ATBeatenUsers = ""
+    mapAT.ATBeatenTimestamp = -1
+
+
+async def tmx_replay_exists_and_beats_at(t: dict):
+    wrTime = t.get("ReplayWRTime", None)
+    if wrTime is None: return False
+    if wrTime <= t['AuthorTime']:
+        return await replay_exists_on_tmx(t['ReplayWRID'])
+    return False
+
+
+async def replay_exists_on_tmx(replayID: int) -> bool:
+    async with get_session() as session:
+        try:
+            async with session.get(f"https://trackmania.exchange/api/replays/get_replay_info/{replayID}", timeout=10.0) as resp:
+                if resp.status == 200:
+                    # returns 200 with 0 length for nonexistent replays?
+                    j = await resp.json()
+                    return j["ReplayID"] == replayID
+                    # return await resp.json()
+                return False
+        except asyncio.TimeoutError as e:
+            logging.warn(f"TMX timeout for replay_exists_on_tmx")
+        return False
 
 
 async def fix_at_beaten_first_nb():
@@ -392,7 +425,7 @@ async def gen_recently_beaten_from_query(q: 'BaseManager[TmxMapAT]'):
 
 
 async def check_tmx_unbeaten_loop():
-    sleep_len = 86400 // 4
+    sleep_len = 86400 // 6
     while True:
         start = time.time()
         await run_check_tmx_unbeaten_removed_updated()
@@ -426,9 +459,10 @@ async def run_check_tmx_unbeaten_removed_updated():
         saved_offline_wrs = []
         for t in batch_resp:
             tid = t['TrackID']
-            wrTime = t.get("ReplayWRTime", None)
-            if wrTime is not None and wrTime <= t['AuthorTime']:
+            if (await tmx_replay_exists_and_beats_at(t)):
+                logging.info(f"Found replay WR: {t['TrackID']}")
                 set_at_beaten_replay(tid_to_mapAT[tid], t)
+                tid_to_mapAT[tid].TmxReplayVerified = True
                 await tid_to_mapAT[tid].asave()
                 saved_offline_wrs.append(tid)
             # save every map to get updated UIDs or things
@@ -457,3 +491,17 @@ async def get_maps_from_tmx(tids_or_uids: list[int | str]) -> list[dict]:
                     raise Exception(f"Could not get map infos: {resp.status} code.")
         except asyncio.TimeoutError as e:
             raise Exception(f"TMX timeout for get map infos")
+
+
+
+async def fix_tmx_records():
+    q = TmxMapAT.objects.filter(
+        ATBeatenUsers__contains=" (TMX)", TmxReplayVerified=False
+    )
+    count = 0
+    async for mapAT in q:
+        unset_at_beaten_replay(mapAT)
+        await mapAT.asave()
+        count += 1
+    if count > 0:
+        logging.info(f"Fixed {count} TMX replay records")
