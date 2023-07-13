@@ -463,6 +463,7 @@ async def run_check_tmx_unbeaten_removed_updated():
                 logging.info(f"Found replay WR: {t['TrackID']}")
                 set_at_beaten_replay(tid_to_mapAT[tid], t)
                 tid_to_mapAT[tid].TmxReplayVerified = True
+                tid_to_mapAT[tid].ATBeatenOnTmx = True
                 await tid_to_mapAT[tid].asave()
                 saved_offline_wrs.append(tid)
             # save every map to get updated UIDs or things
@@ -505,3 +506,11 @@ async def fix_tmx_records():
         count += 1
     if count > 0:
         logging.info(f"Fixed {count} TMX replay records")
+
+
+    q = TmxMapAT.objects.filter(
+        ATBeatenUsers__contains=" (TMX)", TmxReplayVerified=True, ATBeatenOnTMX=False
+    )
+    async for mapAT in q:
+        mapAT.ATBeatenOnTmx = True
+        await mapAT.asave()
