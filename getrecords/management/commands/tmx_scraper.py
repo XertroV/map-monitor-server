@@ -426,6 +426,11 @@ async def run_check_tmx_unbeaten_removed_updated():
                 await tid_to_mapAT[tid].asave()
                 saved_offline_wrs.append(tid)
             # save every map to get updated UIDs or things
+
+            if tid == 92378:
+                logging.info(f"tid 92378")
+                logging.info(f"tmx uid: {t['TrackUID']}")
+                logging.info(f"existing uid: {tid_to_mapAT[tid].Track.TrackUID}")
             await update_tmx_map(t)
 
         if len(saved_offline_wrs) > 0:
