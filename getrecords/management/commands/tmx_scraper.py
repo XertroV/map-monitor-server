@@ -405,7 +405,7 @@ async def run_check_tmx_unbeaten_removed_updated():
 
     for _batch_ids in chunk(tids, 30):
         batch_ids = list(_batch_ids)
-        logging.info(f"run_check_tmx_unbeaten_removed_updated: {batch_ids}")
+        logging.info(f"run_check_tmx_unbeaten_removed_updated: {len(batch_ids)}")
         batch_resp = await get_maps_from_tmx(batch_ids)
         resp_ids = [t['TrackID'] for t in batch_resp]
         removed = set(batch_ids) - set(resp_ids)
@@ -424,7 +424,8 @@ async def run_check_tmx_unbeaten_removed_updated():
                 set_at_beaten_replay(tid_to_mapAT[tid], t)
                 await tid_to_mapAT[tid].asave()
                 saved_offline_wrs.append(tid)
-                await update_tmx_map(t)
+            # save every map to get updated UIDs or things
+            await update_tmx_map(t)
 
         if len(saved_offline_wrs) > 0:
             logging.info(f"Marked {len(saved_offline_wrs)} as having AT beaten offline.")
