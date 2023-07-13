@@ -79,7 +79,7 @@ async def run_tmx_scraper(state: TmxMapScrapeState, update_state: TmxMapScrapeSt
         try:
             # to any fixes first (should be batched)
             await fix_at_beaten_first_nb()
-            await fix_tmx_records()
+            # await fix_tmx_records()
             if LOCAL_DEV_MODE:
                 await cache_recently_beaten_ats()
             #     await scrape_unbeaten_ats()
@@ -507,21 +507,20 @@ async def get_maps_from_tmx(tids_or_uids: list[int | str]) -> list[dict]:
 
 
 async def fix_tmx_records():
-    q = TmxMapAT.objects.filter(
-        ATBeatenUsers__contains=" (TMX)"
-    )
-    count = 0
-    async for mapAT in q:
-        unset_at_beaten_replay(mapAT)
-        await mapAT.asave()
-        count += 1
-    if count > 0:
-        logging.info(f"Fixed {count} TMX replay records")
-
-
-    q = TmxMapAT.objects.filter(
-        ATBeatenUsers__contains=" (TMX)", TmxReplayVerified=True, ATBeatenOnTmx=False
-    )
-    async for mapAT in q:
-        mapAT.ATBeatenOnTmx = True
-        await mapAT.asave()
+    pass
+    # q = TmxMapAT.objects.filter(
+    #     ATBeatenUsers__contains=" (TMX)"
+    # )
+    # count = 0
+    # async for mapAT in q:
+    #     unset_at_beaten_replay(mapAT)
+    #     await mapAT.asave()
+    #     count += 1
+    # if count > 0:
+    #     logging.info(f"Fixed {count} TMX replay records")
+    # q = TmxMapAT.objects.filter(
+    #     ATBeatenUsers__contains=" (TMX)", TmxReplayVerified=True, ATBeatenOnTmx=False
+    # )
+    # async for mapAT in q:
+    #     mapAT.ATBeatenOnTmx = True
+    #     await mapAT.asave()
