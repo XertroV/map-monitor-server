@@ -80,19 +80,27 @@ NadeoCoreToken: NadeoToken | None = None
 NadeoLiveToken: NadeoToken | None = None
 NadeoClubToken: NadeoToken | None = None
 
+nadeoServicesTask: None | asyncio.Task = None
 
 async def await_nadeo_services_initialized():
-    if not NADEO_SVC_AUTH_STARTED:
-        asyncio.create_task(run_nadeo_services_auth())
-    while NadeoLiveToken is None:
-        await asyncio.sleep(.05)
-    while NadeoClubToken is None:
-        await asyncio.sleep(.05)
-
+    if tokens_need_reacquire():
+        await reacquire_all_tokens()
+    # global nadeoServicesTask
+    # if nadeoServicesTask is None:
+    #     nadeoServicesTask = asyncio.create_task(run_nadeo_services_auth())
+    # while NadeoLiveToken is None:
+    #     await asyncio.sleep(.05)
+    # while NadeoClubToken is None:
+    #     await asyncio.sleep(.05)
 
 def all_tokens() -> list[NadeoToken | None]:
     return [NadeoLiveToken, NadeoCoreToken, NadeoClubToken]
 
+def tokens_need_reacquire() -> bool:
+    for t in all_tokens():
+        if t is None: return True
+        if check_refresh_after(t): return True
+    return False
 
 async def reacquire_token(for_name: str, force=False) -> NadeoToken:
     tmpNadeoToken = None

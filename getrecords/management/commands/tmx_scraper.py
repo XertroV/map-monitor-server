@@ -9,7 +9,7 @@ from django.core.management.base import BaseCommand, CommandError
 
 from getrecords.http import get_session
 from getrecords.models import CachedValue, MapTotalPlayers, TmxMap, TmxMapAT, TmxMapScrapeState
-from getrecords.nadeoapi import LOCAL_DEV_MODE, get_map_records
+from getrecords.nadeoapi import LOCAL_DEV_MODE, get_map_records, run_nadeo_services_auth
 from getrecords.tmx_maps import tmx_date_to_ts
 from getrecords.unbeaten_ats import TMXIDS_UNBEATABLE_ATS
 from getrecords.utils import chunk, model_to_dict
@@ -41,6 +41,7 @@ class Command(BaseCommand):
         state = get_scrape_state()
         update_state = get_update_scrape_state()
         self.loop.create_task(check_tmx_unbeaten_loop())
+        self.loop.create_task(run_nadeo_services_auth())
         self._run_async(run_tmx_scraper(state, update_state))
 
         pass
