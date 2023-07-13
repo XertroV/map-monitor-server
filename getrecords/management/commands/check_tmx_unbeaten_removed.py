@@ -8,6 +8,7 @@ from typing import Coroutine
 from django.core.management.base import BaseCommand, CommandError
 
 from getrecords.http import get_session
+from getrecords.management.commands.tmx_scraper import check_tmx_unbeaten_loop
 from getrecords.models import CachedValue, MapTotalPlayers, TmxMap, TmxMapAT, TmxMapScrapeState
 from getrecords.nadeoapi import LOCAL_DEV_MODE, get_map_records
 from getrecords.tmx_maps import tmx_date_to_ts
