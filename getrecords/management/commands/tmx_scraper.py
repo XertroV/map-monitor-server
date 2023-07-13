@@ -344,10 +344,11 @@ async def cache_recently_beaten_ats():
     logging.info(f"unbeaten start")
     keys = ['TrackID', 'TrackUID', 'Track_Name', 'AuthorLogin', 'Tags', 'MapType', 'AuthorTime', 'WR', 'LastChecked', "ATBeatenTimestamp", "ATBeatenUsers", "NbPlayers"]
 
-    tracks = await gen_recently_beaten_from_query(get_recently_beaten_ats_query()[:50])
+    nb = 200
+    tracks = await gen_recently_beaten_from_query(get_recently_beaten_ats_query()[:nb])
 
     tracks100k = await gen_recently_beaten_from_query(
-            get_recently_beaten_ats_query().filter(Track__TrackID__lte=100_000)[:50]
+            get_recently_beaten_ats_query().filter(Track__TrackID__lte=100_000)[:nb]
         )
 
     resp = dict(keys=keys, all=dict(nbTracks=len(tracks), tracks=tracks),
