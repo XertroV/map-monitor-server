@@ -440,12 +440,16 @@ async def check_tmx_unbeaten_loop():
     sleep_len = 86400 // 6
     while True:
         start = time.time()
-        await run_check_tmx_unbeaten_removed_updated()
+        try:
+            await run_check_tmx_unbeaten_removed_updated()
+        except Exception as e:
+            logging.error(f"Exception checking tmx unbeaten/removed/updated: {e}")
         await asyncio.sleep(sleep_len - (time.time() - start))
 
 
 
 async def run_check_tmx_unbeaten_removed_updated():
+    logging.info(f"{time.time()} run_check_tmx_unbeaten_removed_updated start")
     q = get_unbeaten_ats_query()
     tids = []
     tid_to_mapAT = dict()
@@ -455,7 +459,7 @@ async def run_check_tmx_unbeaten_removed_updated():
 
     for _batch_ids in chunk(tids, 30):
         batch_ids = list(_batch_ids)
-        logging.info(f"run_check_tmx_unbeaten_removed_updated: {len(batch_ids)}, has debug: {92378 in batch_ids}")
+        # logging.info(f"run_check_tmx_unbeaten_removed_updated: {len(batch_ids)}")
         batch_resp = await get_maps_from_tmx(batch_ids)
         resp_ids = [t['TrackID'] for t in batch_resp]
         removed = set(batch_ids) - set(resp_ids)
@@ -481,6 +485,7 @@ async def run_check_tmx_unbeaten_removed_updated():
             logging.info(f"Marked {len(saved_offline_wrs)} as having AT beaten offline.")
 
         await asyncio.sleep(.5)
+    logging.info(f"{time.time()} run_check_tmx_unbeaten_removed_updated end")
 
 
 async def get_maps_from_tmx(tids_or_uids: list[int | str]) -> list[dict]:

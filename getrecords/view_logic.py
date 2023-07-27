@@ -103,3 +103,19 @@ async def update_tmx_map(j: dict):
     if _map is not None:
         TmxMap.RemoveKeysFromTMX(j)
         await TmxMap.objects.filter(TrackID=tid).aupdate(**j)
+
+
+def tmx_map_still_public(m: TmxMap) -> bool:
+    if m.Unlisted or m.Unreleased: return False
+    try:
+        new_map: dict = run_async(get_tmx_map(m.TrackID))
+        # none is returned if status isn't 200, e.g., 404
+        if new_map is None: return False
+        if new_map.get('Unlisted', False) or new_map.get('Unreleased', False):
+            m.Unlisted = new_map.get('Unlisted', False)
+            m.Unreleased = new_map.get('Unreleased', False)
+            m.save()
+            return False
+    except Exception as e:
+        logging.warn(f"Exception checking if tmx map still public: {e}")
+    return True

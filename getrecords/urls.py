@@ -25,6 +25,5 @@ urlpatterns = [
     path(f'tmx/unbeaten_ats', views.unbeaten_ats),
     path(f'tmx/recently_beaten_ats', views.recently_beaten_ats),
     # path(f'tmx/uid_to_tid_map', views.tmx_uid_to_tid_map),
-
-    path(f'debug/nb_dup_tids', views.debug_nb_dup_tids),
+    # path(f'debug/nb_dup_tids', views.debug_nb_dup_tids),
 ]

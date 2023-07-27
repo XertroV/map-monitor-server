@@ -25,7 +25,7 @@ from getrecords.utils import model_to_dict, run_async, sha_256_b_ts
 from .models import CachedValue, Challenge, CotdQualiTimes, Ghost, MapTotalPlayers, TmxMap, TmxMapAT, Track, TrackStats, User, UserStats, UserTrackPlay
 from .nadeoapi import LOCAL_DEV_MODE, core_get_maps_by_uid, nadeo_get_nb_players_for_map, nadeo_get_surround_for_map
 import getrecords.nadeoapi as nadeoapi
-from .view_logic import NB_PLAYERS_CACHE_SECONDS, NB_PLAYERS_MAX_CACHE_SECONDS, RECENTLY_BEATEN_ATS_CV_NAME, UNBEATEN_ATS_CV_NAME, get_tmx_map, get_unbeaten_ats_query, refresh_nb_players_inner, QUALI_TIMES_CACHE_SECONDS
+from .view_logic import NB_PLAYERS_CACHE_SECONDS, NB_PLAYERS_MAX_CACHE_SECONDS, RECENTLY_BEATEN_ATS_CV_NAME, UNBEATEN_ATS_CV_NAME, get_tmx_map, get_unbeaten_ats_query, refresh_nb_players_inner, QUALI_TIMES_CACHE_SECONDS, tmx_map_still_public
 
 
 def json_resp(m: Model):
@@ -299,21 +299,6 @@ def tmx_etags_match(m: TmxMap, etags: list[int]) -> bool:
 
 def tmx_map_downloadable(m: TmxMap) -> bool:
     return m.Downloadable and not (m.Unlisted or m.Unreleased)
-
-def tmx_map_still_public(m: TmxMap) -> bool:
-    if m.Unlisted or m.Unreleased: return False
-    try:
-        new_map: dict = run_async(get_tmx_map(m.TrackID))
-        # none is returned if status isn't 200, e.g., 404
-        if new_map is None: return False
-        if new_map.get('Unlisted', False) or new_map.get('Unreleased', False):
-            m.Unlisted = new_map.get('Unlisted', False)
-            m.Unreleased = new_map.get('Unreleased', False)
-            m.save()
-            return False
-    except Exception as e:
-        logging.warn(f"Exception checking if tmx map still public: {e}")
-    return True
 
 
 def tmx_compat_mapsearch2(request: HttpRequest):
