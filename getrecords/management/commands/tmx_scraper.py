@@ -12,9 +12,9 @@ from getrecords.http import get_session
 from getrecords.models import CachedValue, MapTotalPlayers, TmxMap, TmxMapAT, TmxMapScrapeState
 from getrecords.nadeoapi import LOCAL_DEV_MODE, get_map_records, run_nadeo_services_auth
 from getrecords.tmx_maps import tmx_date_to_ts
-from getrecords.unbeaten_ats import TMXIDS_UNBEATABLE_ATS
+from getrecords.unbeaten_ats import TMX_MAPPACKID_UNBEATABLE_ATS, TMXIDS_UNBEATABLE_ATS
 from getrecords.utils import chunk, model_to_dict
-from getrecords.view_logic import RECENTLY_BEATEN_ATS_CV_NAME, UNBEATEN_ATS_CV_NAME, get_recently_beaten_ats_query, get_tmx_map, get_unbeaten_ats_query, refresh_nb_players_inner, update_tmx_map
+from getrecords.view_logic import RECENTLY_BEATEN_ATS_CV_NAME, TRACK_UIDS_CV_NAME, UNBEATEN_ATS_CV_NAME, get_recently_beaten_ats_query, get_tmx_map, get_tmx_map_pack_maps, get_unbeaten_ats_query, refresh_nb_players_inner, update_tmx_map
 
 
 # AT_CHECK_BATCH_SIZE = 360
@@ -82,7 +82,8 @@ async def run_tmx_scraper(state: TmxMapScrapeState, update_state: TmxMapScrapeSt
             # await fix_tmx_records()
             if LOCAL_DEV_MODE:
                 await cache_recently_beaten_ats()
-            #     await scrape_unbeaten_ats()
+                await cache_map_uids()
+                await scrape_unbeaten_ats()
             latest_map = await get_latest_map_id()
             if latest_map > state.LastScraped:
                 await scrape_range(state, latest_map)
@@ -90,6 +91,7 @@ async def run_tmx_scraper(state: TmxMapScrapeState, update_state: TmxMapScrapeSt
             await scrape_unbeaten_ats()
             await cache_unbeaten_ats()
             await cache_recently_beaten_ats()
+            await cache_map_uids()
             sduration = max(0, loop_seconds - (time.time() - start))
             logging.info(f"txm scraper sleeping for {sduration}s")
             await asyncio.sleep(sduration)
@@ -406,6 +408,21 @@ async def cache_recently_beaten_ats():
     logging.info(f"Cached recently beaten ATs; len={len(cv.value)} / {len(tracks)}")
 
 
+async def cache_map_uids():
+    logging.info(f"track ids to uid cache start")
+    q = TmxMap.objects.all()
+    track_uids = {}
+    async for track in q:
+        track_uids[track.TrackID] = track.TrackUID
+    cv = await CachedValue.objects.filter(name=TRACK_UIDS_CV_NAME).afirst()
+    if cv is None:
+        cv = CachedValue(name=TRACK_UIDS_CV_NAME, value="")
+    cv.value = json.dumps(track_uids)
+    await cv.asave()
+    logging.info(f"Cached track ids to uid; len={len(cv.value)} / {len(track_uids)}")
+
+
+
 async def gen_recently_beaten_from_query(q: 'BaseManager[TmxMapAT]'):
     tracks = []
     uids = []
@@ -441,6 +458,7 @@ async def check_tmx_unbeaten_loop():
     while True:
         start = time.time()
         try:
+            await update_unbeatable_maps_list()
             await run_check_tmx_unbeaten_removed_updated()
         except Exception as e:
             logging.error(f"Exception checking tmx unbeaten/removed/updated: {e}")
@@ -521,3 +539,17 @@ async def fix_tmx_records():
     # async for mapAT in q:
     #     mapAT.ATBeatenOnTmx = True
     #     await mapAT.asave()
+
+
+async def update_unbeatable_maps_list():
+    global TMXIDS_UNBEATABLE_ATS
+    try:
+        logging.info(f"Updating unbeatable ATs (pre len: {len(TMXIDS_UNBEATABLE_ATS)})")
+        maps = await get_tmx_map_pack_maps(TMX_MAPPACKID_UNBEATABLE_ATS)
+        tids = []
+        for t in maps:
+            tids.append(t['TrackID'])
+        TMXIDS_UNBEATABLE_ATS = TMXIDS_UNBEATABLE_ATS.union(set(tids))
+        logging.info(f"Updated unbeatable ATs (post len: {len(TMXIDS_UNBEATABLE_ATS)})")
+    except Exception as e:
+        logging.warn(f"Exception while updating unbeaten maps from map pack: {e}")

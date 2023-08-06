@@ -61,6 +61,7 @@ def get_recently_beaten_ats_query():
 
 UNBEATEN_ATS_CV_NAME = "UnbeatenATs"
 RECENTLY_BEATEN_ATS_CV_NAME = "RecentlyBeatenATs"
+TRACK_UIDS_CV_NAME = "TrackIDToUID"
 
 
 async def get_tmx_map(tid: int, timeout=1.5):
@@ -77,7 +78,7 @@ async def get_tmx_map(tid: int, timeout=1.5):
             raise Exception(f"TMX timeout for get map infos")
 
 
-
+# https://api2.mania.exchange/Method/Index/15
 async def get_tmx_map_pack_maps(mpid: int):
     async with get_session() as session:
         try:

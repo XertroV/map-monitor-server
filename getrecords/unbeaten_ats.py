@@ -1,5 +1,5 @@
-# todo, update with cached map pack
 # https://trackmania.exchange/mappack/view/3164/brokencheatedimpossible-ats
+TMX_MAPPACKID_UNBEATABLE_ATS = 3164
 TMXIDS_UNBEATABLE_ATS = set([
 511,
 1049,
