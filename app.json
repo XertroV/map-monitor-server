@@ -21,7 +21,7 @@
   },
   "formation": {
     "web": {
-      "max_parallel": 3
+      "max_parallel": 2
     }
   }
 }

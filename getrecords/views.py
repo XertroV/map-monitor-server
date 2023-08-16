@@ -18,6 +18,7 @@ from django.core.cache import cache
 from getrecords.http import get_session, http_head_okay
 from getrecords.management.commands.tmx_scraper import get_scrape_state
 from getrecords.openplanet import ARCHIVIST_PLUGIN_ID, MAP_MONITOR_PLUGIN_ID, TokenResp, check_token, sha_256
+from getrecords.rmc_exclusions import EXCLUDE_FROM_RMC
 from getrecords.s3 import upload_ghost_to_s3
 from getrecords.tmx_maps import get_tmx_tags_cached
 from getrecords.utils import model_to_dict, run_async, sha_256_b_ts
@@ -300,6 +301,9 @@ def tmx_etags_match(m: TmxMap, etags: list[int]) -> bool:
 def tmx_map_downloadable(m: TmxMap) -> bool:
     return m.Downloadable and not (m.Unlisted or m.Unreleased)
 
+def tmx_map_okay_rmc(m: TmxMap) -> bool:
+    return m.TrackID not in EXCLUDE_FROM_RMC
+
 
 def tmx_compat_mapsearch2(request: HttpRequest):
     # try twice in case of random exception
@@ -344,6 +348,7 @@ def mapsearch2_inner(request):
             or not tmx_mtype_match(track, mtype) \
             or not tmx_etags_match(track, exclude_tags) \
             or not tmx_map_downloadable(track) \
+            or not tmx_map_okay_rmc(track) \
             or not tmx_map_still_public(track):
             logging.info(f"Track did not match: {tid}")
             continue
