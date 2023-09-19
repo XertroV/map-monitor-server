@@ -32,7 +32,8 @@ class Command(BaseCommand):
     #     parser.add_argument("poll_ids", nargs="+", type=int)
 
     def handle(self, *args, **options):
-        _run_async(self.loop, run_all_tmx_scrapers(self.loop))
+        self.loop.create_task(run_all_tmx_scrapers(self.loop))
+        self.loop.run_forever()
 
 
 def _run_async(loop: asyncio.AbstractEventLoop, coro: Coroutine):
@@ -40,14 +41,14 @@ def _run_async(loop: asyncio.AbstractEventLoop, coro: Coroutine):
         loop.run_until_complete(task)
         return task.result()
 
-async def run_all_tmx_scrapers(loop: asyncio.AbstractEventLoop):
+def run_all_tmx_scrapers(loop: asyncio.AbstractEventLoop):
     logging.info(f"Starting TMX Scraper")
     print(f"Starting TMX Scraper")
     state = get_scrape_state()
     update_state = get_update_scrape_state()
     loop.create_task(check_tmx_unbeaten_loop())
     loop.create_task(run_nadeo_services_auth())
-    await run_tmx_scraper(state, update_state)
+    loop.create_task(run_tmx_scraper(state, update_state))
 
 
 

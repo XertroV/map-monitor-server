@@ -27,12 +27,13 @@ class Command(BaseCommand):
     #     parser.add_argument("poll_ids", nargs="+", type=int)
 
     def handle(self, *args, **options):
-        _run_async(self.loop, run_all_bg_jobs_main(self.loop))
+        run_all_bg_jobs_main(self.loop)
+        self.loop.run_forever()
 
 
-async def run_all_bg_jobs_main(loop: asyncio.AbstractEventLoop):
-    loop.create_task(run_cotd_quali_cache(loop))
-    await run_all_tmx_scrapers(loop)
+def run_all_bg_jobs_main(loop: asyncio.AbstractEventLoop):
+    run_cotd_quali_cache(loop)
+    run_all_tmx_scrapers(loop)
 
 
 

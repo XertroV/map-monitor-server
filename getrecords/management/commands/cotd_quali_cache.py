@@ -27,10 +27,11 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         run_cotd_quali_cache(self.loop)
+        self.loop.run_forever()
 
 
 def run_cotd_quali_cache(loop: asyncio.AbstractEventLoop):
-    _run_async(loop, cotd_quali_cache_main())
+    loop.create_task(cotd_quali_cache_main())
 
 class OldCOTDInfoEx(Exception):
     pass
