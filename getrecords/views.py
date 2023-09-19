@@ -57,6 +57,8 @@ def json_resp_q_times_from_v2(qt: list[dict], ch: CotdChallenge, length, offset,
     resp['json_payload'] = qt
     resp['refresh_in'] = refresh_in
     resp['challenge'] = model_to_dict(ch)
+    resp['challenge']['start_ts'] = ch.start_date
+    resp['challenge']['end_ts'] = ch.end_date
     resp['created_ts'] = 0.0
     resp['updated_ts'] = 0.0
     resp['last_update_started_ts'] = 0.0
