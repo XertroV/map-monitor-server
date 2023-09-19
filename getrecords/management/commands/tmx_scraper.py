@@ -32,7 +32,7 @@ class Command(BaseCommand):
     #     parser.add_argument("poll_ids", nargs="+", type=int)
 
     def handle(self, *args, **options):
-        self.loop.create_task(run_all_tmx_scrapers(self.loop))
+        run_all_tmx_scrapers(self.loop)
         self.loop.run_forever()
 
 

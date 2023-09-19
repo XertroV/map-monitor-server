@@ -48,6 +48,13 @@ def json_resp_q_times(qt: CotdQualiTimes, ch: Challenge, refresh_in=QUALI_TIMES_
     resp['challenge'] = model_to_dict(ch)
     return JsonResponse(resp)
 
+def json_resp_q_times_from_v2(qt: list[CotdChallengeRanking], ch: Challenge, refresh_in=QUALI_TIMES_CACHE_SECONDS):
+    resp = model_to_dict(qt)
+    resp['json_payload'] = json.loads(resp['json_payload'])
+    resp['refresh_in'] = refresh_in
+    resp['challenge'] = model_to_dict(ch)
+    return JsonResponse(resp)
+
 
 def log_auth_debug(request: HttpRequest):
     if not LOCAL_DEV_MODE: return
@@ -152,23 +159,13 @@ def challenge_ranking_to_json(r: CotdChallengeRanking):
 def get_cotd_leaderboards(request, challenge_id: int, map_uid: str):
     if request.method != "GET": return HttpResponseNotAllowed(['GET'])
 
-    # challenge = None
-    # try:
-    #     challenge, created = get_or_create_challenge(challenge_id, map_uid)
-    # except IntegrityError as e:
-    #     # try again in case we got it later
-    #     challenge, created = get_or_create_challenge(challenge_id, map_uid)
-    # # do we have
-    # with transaction.atomic():
-    #     latest_req_ts = get_challenge_records_v2_latest_req_ts(challenge)
-    #     if latest_req_ts is None:
-    #             get_and_save_all_challenge_records(challenge)
-
-    # length = int(request.GET.get('length', '10'))
-    # offset = int(request.GET.get('offset', '0'))
-
-    # return JsonResponse(get_challenge_records_v2(challenge, length, offset), safe=False)
-
+    # check for v2
+    challenge = CotdChallenge.objects.filter(challenge_id=challenge_id, uid=map_uid).first()
+    if challenge is not None and False:
+        length = int(request.GET.get('length', '10'))
+        offset = int(request.GET.get('offset', '0'))
+        v2_times = get_challenge_records_v2(challenge, length, offset)
+        json_resp_q_times_from_v2(v2_times, challenge)
 
 
 
