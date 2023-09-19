@@ -163,6 +163,31 @@ def challenge_ranking_to_json(r: CotdChallengeRanking):
     }
 
 
+def cached_api_challenges_id_records_maps_uid_players(request: HttpRequest, challenge_id: int, map_uid: str):
+    ''' caches /api/challenges/ID/records/maps/UID/players
+    '''
+    if request.method != "GET": return HttpResponseNotAllowed(['GET'])
+    challenge = CotdChallenge.objects.filter(challenge_id=challenge_id, uid=map_uid).first()
+    if (challenge is None): return HttpResponseNotFound(f"Challenge / UID combination not found: {challenge_id}, {map_uid}")
+    resp = dict(
+        uid=challenge.uid,
+        cardinal=0,
+        records=list()
+    )
+    player_ids = request.GET.get('players[]', '').split(',')
+    req_ts = get_challenge_records_v2_latest_req_ts(challenge)
+    if req_ts is not None:
+        records = CotdChallengeRanking.objects.filter(challenge=challenge, req_timestamp=req_ts, player__in=player_ids).all()
+        resp['records'] = [challenge_ranking_to_json(r) for r in records]
+        resp['cardinal'] = CotdChallengeRanking.objects.filter(challenge=challenge, req_timestamp=req_ts).count()
+    return JsonResponse(resp)
+
+
+
+
+
+
+
 def get_cotd_leaderboards(request, challenge_id: int, map_uid: str):
     if request.method != "GET": return HttpResponseNotAllowed(['GET'])
 

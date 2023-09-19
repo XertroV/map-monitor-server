@@ -14,7 +14,9 @@ urlpatterns = [
 
     # v2 of COTD caching
     path('cached/api/challenges/<int:challenge_id>/records/maps/<str:map_uid>', views.cached_api_challenges_id_records_maps_uid),
+    # tmp for ingestion
     path('get_all/challenges/<int:challenge_id>/records/maps/<str:map_uid>', views.get_all_cotd_results),
+    path('cached/api/challenges/<int:challenge_id>/records/maps/<str:map_uid>/players', views.cached_api_challenges_id_records_maps_uid_players),
 
     # old archivist stuff
     path('upload/ghost/<str:map_uid>/<int:score>', views.ghost_upload, name='upload-ghost'),
