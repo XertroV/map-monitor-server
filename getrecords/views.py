@@ -48,11 +48,18 @@ def json_resp_q_times(qt: CotdQualiTimes, ch: Challenge, refresh_in=QUALI_TIMES_
     resp['challenge'] = model_to_dict(ch)
     return JsonResponse(resp)
 
-def json_resp_q_times_from_v2(qt: list[CotdChallengeRanking], ch: Challenge, refresh_in=QUALI_TIMES_CACHE_SECONDS):
-    resp = model_to_dict(qt)
-    resp['json_payload'] = json.loads(resp['json_payload'])
+def json_resp_q_times_from_v2(qt: list[dict], ch: CotdChallenge, length, offset, refresh_in=QUALI_TIMES_CACHE_SECONDS):
+    resp = dict()
+    resp['challenge_id'] = ch.challenge_id
+    resp['uid'] = ch.uid
+    resp['length'] = length
+    resp['offset'] = offset
+    resp['json_payload'] = qt
     resp['refresh_in'] = refresh_in
     resp['challenge'] = model_to_dict(ch)
+    resp['created_ts'] = 0.0
+    resp['updated_ts'] = 0.0
+    resp['last_update_started_ts'] = 0.0
     return JsonResponse(resp)
 
 
@@ -161,11 +168,11 @@ def get_cotd_leaderboards(request, challenge_id: int, map_uid: str):
 
     # check for v2
     challenge = CotdChallenge.objects.filter(challenge_id=challenge_id, uid=map_uid).first()
-    if challenge is not None and False:
+    if challenge is not None:
         length = int(request.GET.get('length', '10'))
         offset = int(request.GET.get('offset', '0'))
         v2_times = get_challenge_records_v2(challenge, length, offset)
-        json_resp_q_times_from_v2(v2_times, challenge)
+        return json_resp_q_times_from_v2(v2_times, challenge, length, offset)
 
 
 
