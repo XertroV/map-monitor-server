@@ -17,6 +17,7 @@ urlpatterns = [
     # tmp for ingestion
     path('get_all/challenges/<int:challenge_id>/records/maps/<str:map_uid>', views.get_all_cotd_results),
     path('cached/api/challenges/<int:challenge_id>/records/maps/<str:map_uid>/players', views.cached_api_challenges_id_records_maps_uid_players),
+    path('cached/api/cup-of-the-day/current', views.cached_api_cotd_current),
 
     # old archivist stuff
     path('upload/ghost/<str:map_uid>/<int:score>', views.ghost_upload, name='upload-ghost'),

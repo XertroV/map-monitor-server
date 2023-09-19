@@ -27,7 +27,7 @@ from getrecords.utils import model_to_dict, run_async, sha_256_b_ts
 from .models import CachedValue, Challenge, CotdChallenge, CotdChallengeRanking, CotdQualiTimes, Ghost, MapTotalPlayers, TmxMap, TmxMapAT, Track, TrackStats, User, UserStats, UserTrackPlay
 from .nadeoapi import LOCAL_DEV_MODE, core_get_maps_by_uid, get_and_save_all_challenge_records, nadeo_get_nb_players_for_map, nadeo_get_surround_for_map
 import getrecords.nadeoapi as nadeoapi
-from .view_logic import NB_PLAYERS_CACHE_SECONDS, NB_PLAYERS_MAX_CACHE_SECONDS, RECENTLY_BEATEN_ATS_CV_NAME, TRACK_UIDS_CV_NAME, UNBEATEN_ATS_CV_NAME, get_tmx_map, get_unbeaten_ats_query, refresh_nb_players_inner, QUALI_TIMES_CACHE_SECONDS, tmx_map_still_public
+from .view_logic import CURRENT_COTD_KEY, NB_PLAYERS_CACHE_SECONDS, NB_PLAYERS_MAX_CACHE_SECONDS, RECENTLY_BEATEN_ATS_CV_NAME, TRACK_UIDS_CV_NAME, UNBEATEN_ATS_CV_NAME, get_tmx_map, get_unbeaten_ats_query, refresh_nb_players_inner, QUALI_TIMES_CACHE_SECONDS, tmx_map_still_public
 
 
 def json_resp(m: Model):
@@ -183,7 +183,11 @@ def cached_api_challenges_id_records_maps_uid_players(request: HttpRequest, chal
     return JsonResponse(resp)
 
 
-
+def cached_api_cotd_current(request: HttpRequest):
+    next_cotd = CachedValue.objects.filter(name=CURRENT_COTD_KEY).first()
+    if next_cotd is not None:
+        return HttpResponse(next_cotd.value)
+    return JsonResponse(dict(error='not yet initialized'))
 
 
 

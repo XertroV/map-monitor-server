@@ -62,6 +62,7 @@ def get_recently_beaten_ats_query():
 UNBEATEN_ATS_CV_NAME = "UnbeatenATs"
 RECENTLY_BEATEN_ATS_CV_NAME = "RecentlyBeatenATs"
 TRACK_UIDS_CV_NAME = "TrackIDToUID"
+CURRENT_COTD_KEY = "COTD_current"
 
 
 async def get_tmx_map(tid: int, timeout=1.5):

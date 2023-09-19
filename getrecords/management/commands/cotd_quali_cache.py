@@ -14,7 +14,7 @@ from getrecords.nadeoapi import LOCAL_DEV_MODE, get_and_save_all_challenge_recor
 from getrecords.tmx_maps import tmx_date_to_ts
 from getrecords.unbeaten_ats import TMX_MAPPACKID_UNBEATABLE_ATS, TMXIDS_UNBEATABLE_ATS
 from getrecords.utils import chunk, model_to_dict
-from getrecords.view_logic import RECENTLY_BEATEN_ATS_CV_NAME, TRACK_UIDS_CV_NAME, UNBEATEN_ATS_CV_NAME, get_recently_beaten_ats_query, get_tmx_map, get_tmx_map_pack_maps, get_unbeaten_ats_query, refresh_nb_players_inner, update_tmx_map
+from getrecords.view_logic import CURRENT_COTD_KEY, RECENTLY_BEATEN_ATS_CV_NAME, TRACK_UIDS_CV_NAME, UNBEATEN_ATS_CV_NAME, get_recently_beaten_ats_query, get_tmx_map, get_tmx_map_pack_maps, get_unbeaten_ats_query, refresh_nb_players_inner, update_tmx_map
 
 from getrecords.management.commands.tmx_scraper import _run_async, run_all_tmx_scrapers
 
@@ -53,6 +53,7 @@ async def cotd_quali_cache_main():
             challenge_id = next_cotd['challenge']['id']
             now = time.time()
             logging.info(f"Next COTD info: {[challenge_id, start_date, end_date, int(start_date - now)]}")
+            await update_cached_next_cotd(next_cotd)
 
             # if we're before COTD, wait till it starts; sleep to 10 sec before to request TOTD info
             sleep_before = (start_date - 10) - now
@@ -93,6 +94,10 @@ async def cotd_quali_cache_main():
             logging.warn(f"Failed to get next COTD info ({e}). Sleeping 3.14 minutes.")
             traceback.print_exception(e, limit=3)
         await asyncio.sleep(3.14 * 60)
+
+
+async def update_cached_next_cotd(next_cotd):
+    _, created = await CachedValue.objects.aupdate_or_create({'value': json.dumps(next_cotd)}, name=CURRENT_COTD_KEY)
 
 
 def get_most_recent_totd_from_totd_maps_resp(totd_info):
