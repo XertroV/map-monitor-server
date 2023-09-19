@@ -58,7 +58,7 @@ async def cotd_quali_cache_main():
             # if we're before COTD, wait till it starts; sleep to 10 sec before to request TOTD info
             sleep_before = (start_date - 10) - now
             if sleep_before > 0:
-                logging.info(f"Waiting for {sleep_before} seconds for COTD to start...")
+                logging.info(f"Waiting for {int(sleep_before) // 60} minutes for COTD to start...")
                 await asyncio.sleep(sleep_before)
             # if we're after COTD, then new details aren't available yet, so throw an exception so we sleep and loop
             if end_date < now:

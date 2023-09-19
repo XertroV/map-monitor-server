@@ -131,20 +131,31 @@ def get_or_insert_all_cotd_results(challenge_id: int, map_uid: str):
         rankings = CotdChallengeRanking.objects.filter(challenge=challenge, req_timestamp=ranking.req_timestamp).all()
     return rankings
 
-
+COTD_UPPER_LIMIT = 20000
 def cached_api_challenges_id_records_maps_uid(request, challenge_id: int, map_uid: str):
     if request.method != "GET": return HttpResponseNotAllowed(['GET'])
     challenge = CotdChallenge.objects.filter(challenge_id=challenge_id, uid=map_uid).first()
     if challenge is None: return JsonResponse([], safe=False)
     length = int(request.GET.get('length', '10'))
     offset = int(request.GET.get('offset', '0'))
-    return JsonResponse(get_challenge_records_v2(challenge, length, offset), safe=False)
+    just_cutoffs = 'cutoffs' in request.GET
+    resp = get_challenge_records_v2_by_ranks(challenge, list(range(64, COTD_UPPER_LIMIT, 64))) \
+            if just_cutoffs \
+            else get_challenge_records_v2(challenge, length, offset)
+    return JsonResponse(resp, safe=False)
 
 
 def get_challenge_records_v2(challenge, length, offset):
     latest_record = CotdChallengeRanking.objects.filter(challenge=challenge).latest('req_timestamp')
     if latest_record is not None:
         rankings = CotdChallengeRanking.objects.filter(challenge=challenge, req_timestamp=latest_record.req_timestamp)[offset:offset+length].all()
+        return [challenge_ranking_to_json(r) for r in rankings]
+    return []
+
+def get_challenge_records_v2_by_ranks(challenge, ranks: list[int]):
+    latest_record = CotdChallengeRanking.objects.filter(challenge=challenge).latest('req_timestamp')
+    if latest_record is not None:
+        rankings = CotdChallengeRanking.objects.filter(challenge=challenge, req_timestamp=latest_record.req_timestamp, rank__in=ranks).all()
         return [challenge_ranking_to_json(r) for r in rankings]
     return []
 
