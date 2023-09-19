@@ -32,6 +32,8 @@ class Command(BaseCommand):
 def run_cotd_quali_cache(loop: asyncio.AbstractEventLoop):
     _run_async(loop, cotd_quali_cache_main())
 
+class OldCOTDInfoEx(Exception):
+    pass
 
 async def cotd_quali_cache_main():
     ''' Get info about the current / next COTD quali.
@@ -39,6 +41,7 @@ async def cotd_quali_cache_main():
         Once it ends, enter waiting period till next COTD.
     '''
     while True:
+        old_cotd_sleep = 3.14 * 60
         try:
             logging.info(f"Getting next COTD info.")
             next_cotd = await get_cotd_current()
@@ -57,7 +60,8 @@ async def cotd_quali_cache_main():
                 await asyncio.sleep(sleep_before)
             # if we're after COTD, then new details aren't available yet, so throw an exception so we sleep and loop
             if end_date < now:
-                raise Exception(f"Got old COTD info")
+                old_cotd_sleep = max(end_date + 60 * 60 * 4 - now, old_cotd_sleep)
+                raise OldCOTDInfoEx(f"Got old COTD info")
             # get the new TOTD info
             # set this in the future
             totd_start_date = end_date
@@ -81,10 +85,13 @@ async def cotd_quali_cache_main():
             await run_cache_during_cotd_quali(challenge_id, totd_uid, start_date, end_date)
             logging.info(f"COTD has ended")
 
+        except OldCOTDInfoEx as e:
+            logging.warn(f"Got old cotd. Sleeping {old_cotd_sleep / 60 + 3.14} minutes.")
+            await asyncio.sleep(old_cotd_sleep)
         except Exception as e:
             logging.warn(f"Failed to get next COTD info ({e}). Sleeping 3.14 minutes.")
             traceback.print_exception(e, limit=3)
-            await asyncio.sleep(3.14 * 60)
+        await asyncio.sleep(3.14 * 60)
 
 
 def get_most_recent_totd_from_totd_maps_resp(totd_info):
