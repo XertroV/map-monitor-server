@@ -191,20 +191,20 @@ def challenge_ranking_to_json(r: CotdChallengeRanking):
 def cached_api_challenges_id_records_maps_uid_players(request: HttpRequest, challenge_id: int, map_uid: str):
     ''' caches /api/challenges/ID/records/maps/UID/players
     '''
-    if request.method != "GET": return HttpResponseNotAllowed(['GET'])
+    if request.method not in ["GET", "POST"]: return HttpResponseNotAllowed(['GET', 'POST'])
     challenge = CotdChallenge.objects.filter(challenge_id=challenge_id, uid=map_uid).first()
     if (challenge is None): return HttpResponseNotFound(f"Challenge / UID combination not found: {challenge_id}, {map_uid}")
-    if challenge.leaderboard_id < 0:
-        resp = run_async(nadeoapi.get_challenge(challenge.challenge_id))
-        challenge.leaderboard_id = resp['leaderboardId']
-        challenge.name = resp['name']
-        challenge.save()
+
     resp = dict(
         uid=challenge.uid,
         cardinal=0,
         records=list()
     )
-    player_ids = request.GET.get('players[]', '').split(',')
+    player_ids = []
+    if request.method == "GET":
+        player_ids = request.GET.get('players[]', '').split(',')
+    elif request.method == "POST" and len(request.body) > 0:
+        player_ids = json.loads(request.body).get('players', [])
     req_ts = get_challenge_records_v2_latest_req_ts(challenge)
     if req_ts is not None:
         records = CotdChallengeRanking.objects.filter(challenge=challenge, req_timestamp=req_ts, player__in=player_ids).all()
