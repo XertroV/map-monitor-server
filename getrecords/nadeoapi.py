@@ -11,7 +11,7 @@ from mapmonitor.settings import DEBUG
 
 from .utils import read_config_file
 from .http import get_session
-from .models import AuthToken
+from .models import AuthToken, CotdChallenge, CotdChallengeRanking
 
 
 LOCAL_DEV_MODE = DEBUG
@@ -127,9 +127,12 @@ async def reacquire_token(for_name: str, force=False) -> NadeoToken:
 async def reacquire_all_tokens(force=False):
     global NadeoCoreToken, NadeoLiveToken, NadeoClubToken
 
-    NadeoCoreToken = await reacquire_token('NadeoServices')
-    NadeoLiveToken = await reacquire_token('NadeoLiveServices')
-    NadeoClubToken = await reacquire_token('NadeoClubServices')
+    NadeoCoreToken, NadeoLiveToken, NadeoClubToken = \
+        await asyncio.gather(
+            reacquire_token('NadeoServices'),
+            reacquire_token('NadeoLiveServices'),
+            reacquire_token('NadeoClubServices'),
+        )
 
     # # NadeoCoreToken = await get_token_for_audience(ubi, 'NadeoServices')
     # # logging.warn(f"Got core token: {NadeoCoreToken is not None}")
@@ -201,18 +204,18 @@ def get_club_session():
     return get_nadeo_session('NadeoClubServices')
 
 
-TOTD_MAP_LIST = "https://live-services.trackmania.nadeo.live/api/token/campaign/month?length=100&offset=0"
+TOTD_MAP_LIST = "https://live-services.trackmania.nadeo.live/api/token/campaign/month?length={length}&offset=0"
 
-async def get_totd_maps():
+async def get_totd_maps(length=100):
     await await_nadeo_services_initialized()
     async with get_live_session() as session:
-        async with await session.get(TOTD_MAP_LIST) as resp:
+        async with await session.get(TOTD_MAP_LIST.format(length=length)) as resp:
             if resp.status == 200:
                 return await resp.json()
             logging.warn(f"get totd maps got status: {resp.status}, {await resp.text()}")
             return None
 
-GET_CHALLENGE_URL = "https://competition.trackmania.nadeo.club/api/challenges/{id}"
+GET_CHALLENGE_URL = "https://meet.trackmania.nadeo.club/api/challenges/{id}"
 
 async def get_challenge(_id: int):
     url = GET_CHALLENGE_URL.format(id=_id)
@@ -224,7 +227,7 @@ async def get_challenge(_id: int):
             logging.warn(f"get challenge with id {_id} failed: {resp.status}, {await resp.text()}")
             return None
 
-GET_CHALLENGE_RECORDS_URL = "https://competition.trackmania.nadeo.club/api/challenges/{id}/records/maps/{map_uid}?length={length}&offset={offset}"
+GET_CHALLENGE_RECORDS_URL = "https://meet.trackmania.nadeo.club/api/challenges/{id}/records/maps/{map_uid}?length={length}&offset={offset}"
 
 async def get_challenge_records(_id: int, map_uid: str, length: int = 10, offset: int = 0):
     url = GET_CHALLENGE_RECORDS_URL.format(id=_id, map_uid=map_uid, length=length, offset=offset)
@@ -234,6 +237,53 @@ async def get_challenge_records(_id: int, map_uid: str, length: int = 10, offset
             if resp.status == 200:
                 return await resp.json()
             logging.warn(f"get challenge records with id {_id}, map: {map_uid} failed: {resp.status}, {await resp.text()}")
+            return None
+
+
+async def get_and_save_all_challenge_records(challenge: CotdChallenge):
+        cid = challenge.challenge_id
+        uid = challenge.uid
+        c_players = await get_challenge_players(cid, uid)
+        last_nb_players = c_players['cardinal']
+        offsets = list(range(0, last_nb_players+100, 100))
+        requests = [get_challenge_records(cid, uid, 100, o) for o in offsets]
+        responses = await asyncio.gather(*requests, return_exceptions=True)
+        # create (but dont save) records
+        loop_mid = time.time()
+        new_records = [rec for resp, offset in zip(responses, offsets) for rec in gen_cotd_quali_challenge_block(challenge, resp, offset, int(loop_mid))]
+        return await CotdChallengeRanking.objects.abulk_create(new_records)
+
+
+def gen_cotd_quali_challenge_block(challenge, resp, offset, loop_mid) -> list[CotdChallengeRanking]:
+    return [
+        CotdChallengeRanking(challenge=challenge, req_timestamp=loop_mid,
+                             rank=record['rank'], score=record['score'], player=record['player'])
+        for record in resp
+    ]
+
+
+GET_CHALLENGE_PLAYERS_URL = "https://meet.trackmania.nadeo.club/api/challenges/{id}/records/maps/{map_uid}/players?players[]="
+
+# {"uid":"jAtn7LQt2MTG5xv4BeiQwZAX1K","cardinal":376,"records":[{"player":"0a2d1bc0-4aaa-4374-b2db-3d561bdab1c9","score":52414,"rank":230}]}
+async def get_challenge_players(_id: int, map_uid: str, *player_wsids: list[str]):
+    url = GET_CHALLENGE_PLAYERS_URL.format(id=_id, map_uid=map_uid) + ",".join(player_wsids)
+    await await_nadeo_services_initialized()
+    async with get_club_session() as session:
+        async with await session.get(url) as resp:
+            if resp.status == 200:
+                return await resp.json()
+            logging.warn(f"get challenge players with id {_id}, map: {map_uid} failed: {resp.status}, {await resp.text()}")
+            return None
+
+COTD_CURRENT_URL = "https://meet.trackmania.nadeo.club/api/cup-of-the-day/current"
+
+async def get_cotd_current():
+    await await_nadeo_services_initialized()
+    async with get_club_session() as session:
+        async with await session.get(COTD_CURRENT_URL) as resp:
+            if resp.status == 200:
+                return await resp.json()
+            logging.warn(f"api COTD current failed: {resp.status}, {await resp.text()}")
             return None
 
 

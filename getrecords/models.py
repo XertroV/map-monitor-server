@@ -44,6 +44,29 @@ class CotdQualiTimes(models.Model):
         unique_together = [('challenge_id', 'uid', 'length', 'offset')]
 
 
+class CotdChallenge(models.Model):
+    challenge_id: int = models.IntegerField('challenge id', db_index=True)
+    uid: str = models.CharField(max_length=32, db_index=True)
+    start_date: int = models.IntegerField('start date', db_index=True)
+    end_date: int = models.IntegerField('end date', db_index=True)
+    created_ts = models.IntegerField('created timestamp', default=time.time)
+    updated_ts = models.IntegerField('updated timestamp', default=time.time)
+    class Meta:
+        unique_together: [('challenge_id', 'uid')]
+        ordering = ['-challenge_id', '-start_date']
+
+class CotdChallengeRanking(models.Model):
+    '''Replaces CotdQualiTimes; one row per entry'''
+    challenge = models.ForeignKey(CotdChallenge, on_delete=models.DO_NOTHING)
+    req_timestamp: int = models.IntegerField('request timestamp', db_index=True)
+    score: int = models.IntegerField('score', db_index=True)
+    rank: int = models.IntegerField('rank', db_index=True)
+    player: str = models.CharField("player wsid", max_length=36, db_index=True)
+    class Meta:
+        ordering = ["-req_timestamp", "rank"]
+
+
+
 LONG_MAP_SECS = 315
 
 class TmxMapScrapeState(models.Model):

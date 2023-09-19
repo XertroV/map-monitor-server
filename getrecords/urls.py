@@ -11,10 +11,18 @@ urlpatterns = [
     path('map/<str:map_uid>/<int:score>/refresh', views.get_surround_score, name='get-surround-score'),
     path('challenges/<int:challenge_id>/records/maps/<str:map_uid>', views.get_cotd_leaderboards, name='get-cotd-leaderboard'),
     path('api/challenges/<int:challenge_id>/records/maps/<str:map_uid>', views.get_cotd_leaderboards, name='api-get-cotd-leaderboard'),
+
+    # v2 of COTD caching
+    path('cached/api/challenges/<int:challenge_id>/records/maps/<str:map_uid>', views.cached_api_challenges_id_records_maps_uid),
+    path('get_all/challenges/<int:challenge_id>/records/maps/<str:map_uid>', views.get_all_cotd_results),
+
+    # old archivist stuff
     path('upload/ghost/<str:map_uid>/<int:score>', views.ghost_upload, name='upload-ghost'),
     path('upload/ghost/<str:map_uid>/-<int:score>', views.ghost_upload, name='upload-ghost'),
     path(f'register/token/{ARCHIVIST_PLUGIN_ID}', views.register_token_archivist, name='register-token-archivist'),
     path(f'register/token/{MAP_MONITOR_PLUGIN_ID}', views.register_token_mm, name='register-token-mm'),
+
+    # tmx proxy stuff
     path(f'tmx/<int:map_id>/next', views.tmx_next_map),
     path(f'tmx/<int:map_id>/prev', views.tmx_prev_map),
     path(f'tmx/<int:map_id>/count_prior', views.tmx_count_at_map),

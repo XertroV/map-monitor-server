@@ -31,34 +31,24 @@ class Command(BaseCommand):
     # def add_arguments(self, parser):
     #     parser.add_argument("poll_ids", nargs="+", type=int)
 
-    def _run_async(self, coro: Coroutine):
-        task = self.loop.create_task(coro)
-        self.loop.run_until_complete(task)
+    def handle(self, *args, **options):
+        _run_async(self.loop, run_all_tmx_scrapers(self.loop))
+
+
+def _run_async(loop: asyncio.AbstractEventLoop, coro: Coroutine):
+        task = loop.create_task(coro)
+        loop.run_until_complete(task)
         return task.result()
 
-    def handle(self, *args, **options):
-        logging.info(f"Starting TMX Scraper")
-        print(f"Starting TMX Scraper")
-        state = get_scrape_state()
-        update_state = get_update_scrape_state()
-        self.loop.create_task(check_tmx_unbeaten_loop())
-        self.loop.create_task(run_nadeo_services_auth())
-        self._run_async(run_tmx_scraper(state, update_state))
+async def run_all_tmx_scrapers(loop: asyncio.AbstractEventLoop):
+    logging.info(f"Starting TMX Scraper")
+    print(f"Starting TMX Scraper")
+    state = get_scrape_state()
+    update_state = get_update_scrape_state()
+    loop.create_task(check_tmx_unbeaten_loop())
+    loop.create_task(run_nadeo_services_auth())
+    await run_tmx_scraper(state, update_state)
 
-        pass
-        # todo
-        # for poll_id in options["poll_ids"]:
-        #     try:
-        #         poll = Poll.objects.get(pk=poll_id)
-        #     except Poll.DoesNotExist:
-        #         raise CommandError('Poll "%s" does not exist' % poll_id)
-
-        #     poll.opened = False
-        #     poll.save()
-
-        #     self.stdout.write(
-        #         self.style.SUCCESS('Successfully closed poll "%s"' % poll_id)
-        #     )
 
 
 def get_scrape_state(name: str = "main", default_last_scraped=0):

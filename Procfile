@@ -1,3 +1,3 @@
 web: gunicorn mapmonitor.wsgi
 release: python manage.py migrate
-tmx_scraper: python manage.py tmx_scraper
+job_runner: python manage.py run_all_bg_jobs

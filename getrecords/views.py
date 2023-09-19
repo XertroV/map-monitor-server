@@ -7,6 +7,7 @@ from typing import Coroutine, Optional
 
 from numpy import random
 
+from django.db import IntegrityError
 from django.shortcuts import render, get_object_or_404
 from django.http import HttpResponseRedirect, JsonResponse, HttpResponseNotAllowed, HttpRequest, HttpResponseForbidden, HttpResponse, HttpResponseNotFound, HttpResponseBadRequest, HttpResponsePermanentRedirect
 from django.core import serializers
@@ -23,8 +24,8 @@ from getrecords.s3 import upload_ghost_to_s3
 from getrecords.tmx_maps import get_tmx_tags_cached
 from getrecords.utils import model_to_dict, run_async, sha_256_b_ts
 
-from .models import CachedValue, Challenge, CotdQualiTimes, Ghost, MapTotalPlayers, TmxMap, TmxMapAT, Track, TrackStats, User, UserStats, UserTrackPlay
-from .nadeoapi import LOCAL_DEV_MODE, core_get_maps_by_uid, nadeo_get_nb_players_for_map, nadeo_get_surround_for_map
+from .models import CachedValue, Challenge, CotdChallenge, CotdChallengeRanking, CotdQualiTimes, Ghost, MapTotalPlayers, TmxMap, TmxMapAT, Track, TrackStats, User, UserStats, UserTrackPlay
+from .nadeoapi import LOCAL_DEV_MODE, core_get_maps_by_uid, get_and_save_all_challenge_records, nadeo_get_nb_players_for_map, nadeo_get_surround_for_map
 import getrecords.nadeoapi as nadeoapi
 from .view_logic import NB_PLAYERS_CACHE_SECONDS, NB_PLAYERS_MAX_CACHE_SECONDS, RECENTLY_BEATEN_ATS_CV_NAME, TRACK_UIDS_CV_NAME, UNBEATEN_ATS_CV_NAME, get_tmx_map, get_unbeaten_ats_query, refresh_nb_players_inner, QUALI_TIMES_CACHE_SECONDS, tmx_map_still_public
 
@@ -85,8 +86,92 @@ def index(request):
     return JsonResponse(dict(test=True))
 
 
+def get_all_cotd_results(req, challenge_id: int, map_uid: str):
+    # 4942, QAT5zOEWq65ZVGRbF6QveBMlIHf
+    if req.method != "GET": return HttpResponseNotAllowed(['GET'])
+    rankings = get_or_insert_all_cotd_results(challenge_id, map_uid)
+    return JsonResponse([challenge_ranking_to_json(r) for r in rankings], safe=False)
+
+def get_or_create_challenge(challenge_id: int, map_uid: str):
+    challenge = CotdChallenge.objects.filter(challenge_id=challenge_id, uid=map_uid).first()
+    created = False
+    if challenge is None:
+        resp = run_async(nadeoapi.get_challenge(challenge_id))
+        start_date = resp['startDate']
+        end_date = resp['endDate']
+        challenge, created = CotdChallenge.objects.get_or_create(challenge_id=challenge_id, uid=map_uid, start_date=start_date, end_date=end_date)
+    if created:
+        logging.info(f"{'created' if created else 'got'} challenge {challenge.challenge_id}")
+    return challenge, created
+
+def get_or_insert_all_cotd_results(challenge_id: int, map_uid: str):
+    challenge, created = get_or_create_challenge(challenge_id, map_uid)
+    ranking = CotdChallengeRanking.objects.filter(challenge=challenge).first()
+    rankings = []
+    # check if we need to update
+    if ranking is None or ranking.req_timestamp < (challenge.end_date):
+        logging.info(f"Updating rankings")
+        rankings = run_async(get_and_save_all_challenge_records(challenge))
+    else:
+        logging.info(f"Using cached rankings")
+        rankings = CotdChallengeRanking.objects.filter(challenge=challenge, req_timestamp=ranking.req_timestamp).all()
+    return rankings
+
+
+def cached_api_challenges_id_records_maps_uid(request, challenge_id: int, map_uid: str):
+    if request.method != "GET": return HttpResponseNotAllowed(['GET'])
+    challenge = CotdChallenge.objects.filter(challenge_id=challenge_id, uid=map_uid).first()
+    if challenge is None: return JsonResponse([], safe=False)
+    length = int(request.GET.get('length', '10'))
+    offset = int(request.GET.get('offset', '0'))
+    return JsonResponse(get_challenge_records_v2(challenge, length, offset), safe=False)
+
+
+def get_challenge_records_v2(challenge, length, offset):
+    latest_ts = CotdChallengeRanking.objects.filter(challenge=challenge).latest('req_timestamp').req_timestamp
+    rankings = CotdChallengeRanking.objects.filter(challenge=challenge, req_timestamp=latest_ts)[offset:offset+length].all()
+    return [challenge_ranking_to_json(r) for r in rankings]
+
+def get_challenge_records_v2_latest_req_ts(challenge) -> int | None:
+    try:
+        rank1 = CotdChallengeRanking.objects.filter(challenge=challenge).latest('req_timestamp')
+        if rank1 is not None:
+            return rank1.req_timestamp
+    except CotdChallengeRanking.DoesNotExist as e:
+        return None
+
+
+def challenge_ranking_to_json(r: CotdChallengeRanking):
+    return {
+        'score': r.score, 'time': r.score, 'rank': r.rank, 'player': r.player
+    }
+
+
+
+
 def get_cotd_leaderboards(request, challenge_id: int, map_uid: str):
     if request.method != "GET": return HttpResponseNotAllowed(['GET'])
+
+    # challenge = None
+    # try:
+    #     challenge, created = get_or_create_challenge(challenge_id, map_uid)
+    # except IntegrityError as e:
+    #     # try again in case we got it later
+    #     challenge, created = get_or_create_challenge(challenge_id, map_uid)
+    # # do we have
+    # with transaction.atomic():
+    #     latest_req_ts = get_challenge_records_v2_latest_req_ts(challenge)
+    #     if latest_req_ts is None:
+    #             get_and_save_all_challenge_records(challenge)
+
+    # length = int(request.GET.get('length', '10'))
+    # offset = int(request.GET.get('offset', '0'))
+
+    # return JsonResponse(get_challenge_records_v2(challenge, length, offset), safe=False)
+
+
+
+
     # return CallCompApiPath("/api/challenges/" + challengeid + "/records/maps/" + mapid + "?" + LengthAndOffset(length, offset));
     challenge_res = Challenge.objects.filter(challenge_id=challenge_id)
     challenge = None
