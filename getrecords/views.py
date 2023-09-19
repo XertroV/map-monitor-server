@@ -100,6 +100,11 @@ def index(request):
     return JsonResponse(dict(test=True))
 
 
+def get_players_cotd_quali_history(request: HttpRequest, wsid: str):
+    # CotdChallengeRanking()
+    pass
+
+
 def get_all_cotd_results(req, challenge_id: int, map_uid: str):
     # 4942, QAT5zOEWq65ZVGRbF6QveBMlIHf
     if req.method != "GET": return HttpResponseNotAllowed(['GET'])
@@ -113,7 +118,14 @@ def get_or_create_challenge(challenge_id: int, map_uid: str):
         resp = run_async(nadeoapi.get_challenge(challenge_id))
         start_date = resp['startDate']
         end_date = resp['endDate']
-        challenge, created = CotdChallenge.objects.get_or_create(challenge_id=challenge_id, uid=map_uid, start_date=start_date, end_date=end_date)
+        challenge, created = CotdChallenge.objects.get_or_create(
+            challenge_id=challenge_id, uid=map_uid, start_date=start_date, end_date=end_date
+        )
+        if challenge.leaderboard_id < 0:
+            resp = run_async(nadeoapi.get_challenge(challenge.challenge_id))
+            challenge.leaderboard_id = resp['leaderboardId']
+            challenge.name = resp['name']
+            challenge.save()
     if created:
         logging.info(f"{'created' if created else 'got'} challenge {challenge.challenge_id}")
     return challenge, created
@@ -180,6 +192,11 @@ def cached_api_challenges_id_records_maps_uid_players(request: HttpRequest, chal
     if request.method != "GET": return HttpResponseNotAllowed(['GET'])
     challenge = CotdChallenge.objects.filter(challenge_id=challenge_id, uid=map_uid).first()
     if (challenge is None): return HttpResponseNotFound(f"Challenge / UID combination not found: {challenge_id}, {map_uid}")
+    if challenge.leaderboard_id < 0:
+        resp = run_async(nadeoapi.get_challenge(challenge.challenge_id))
+        challenge.leaderboard_id = resp['leaderboardId']
+        challenge.name = resp['name']
+        challenge.save()
     resp = dict(
         uid=challenge.uid,
         cardinal=0,
@@ -209,6 +226,11 @@ def get_cotd_leaderboards(request, challenge_id: int, map_uid: str):
     # check for v2
     challenge_v2 = CotdChallenge.objects.filter(challenge_id=challenge_id, uid=map_uid).first()
     if challenge_v2 is not None:
+        if challenge_v2.leaderboard_id < 0:
+            resp = run_async(nadeoapi.get_challenge(challenge_v2.challenge_id))
+            challenge_v2.leaderboard_id = resp['leaderboardId']
+            challenge_v2.name = resp['name']
+            challenge_v2.save()
         length = int(request.GET.get('length', '10'))
         offset = int(request.GET.get('offset', '0'))
         v2_times = get_challenge_records_v2(challenge_v2, length, offset)

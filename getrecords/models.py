@@ -47,6 +47,8 @@ class CotdQualiTimes(models.Model):
 class CotdChallenge(models.Model):
     challenge_id: int = models.IntegerField('challenge id', db_index=True)
     uid: str = models.CharField(max_length=32, db_index=True)
+    name: str = models.CharField(max_length=64, db_index=True, default="(missing)")
+    leaderboard_id: int = models.IntegerField(default=-1)
     start_date: int = models.IntegerField('start date', db_index=True)
     end_date: int = models.IntegerField('end date', db_index=True)
     created_ts = models.IntegerField('created timestamp', default=time.time)

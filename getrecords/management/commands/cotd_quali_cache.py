@@ -10,7 +10,7 @@ from django.core.management.base import BaseCommand, CommandError
 
 from getrecords.http import get_session
 from getrecords.models import CachedValue, CotdChallenge, CotdChallengeRanking, MapTotalPlayers, TmxMap, TmxMapAT, TmxMapScrapeState
-from getrecords.nadeoapi import LOCAL_DEV_MODE, get_and_save_all_challenge_records, get_challenge_players, get_challenge_records, get_cotd_current, get_map_records, get_totd_maps, run_nadeo_services_auth
+from getrecords.nadeoapi import LOCAL_DEV_MODE, get_and_save_all_challenge_records, get_challenge, get_challenge_players, get_challenge_records, get_cotd_current, get_map_records, get_totd_maps, run_nadeo_services_auth
 from getrecords.tmx_maps import tmx_date_to_ts
 from getrecords.unbeaten_ats import TMX_MAPPACKID_UNBEATABLE_ATS, TMXIDS_UNBEATABLE_ATS
 from getrecords.utils import chunk, model_to_dict
@@ -111,9 +111,16 @@ async def run_cache_during_cotd_quali(cid, uid, start_date, end_date):
     challenge, created = await CotdChallenge.objects.aget_or_create(
         challenge_id = cid, uid = uid, start_date = start_date, end_date = end_date
     )
-    last_nb_players = 64
+    try:
+        if challenge.leaderboard_id < 0:
+            resp = await get_challenge(challenge.challenge_id)
+            challenge.leaderboard_id = resp['leaderboardId']
+            challenge.name = resp['name']
+            await challenge.asave()
+    except Exception as e:
+        logging.warn(f"Exception updating challenge name and leaderboardId: {e}")
+
     main_loop_period = 10 # seconds
-    # loop = asyncio.get_event_loop()
 
     while time.time() < (end_date + 30):
         loop_start = time.time()
@@ -121,17 +128,6 @@ async def run_cache_during_cotd_quali(cid, uid, start_date, end_date):
 
         # loop and get all records for current size and save
         new_records = await get_and_save_all_challenge_records(challenge)
-
-        # c_players = await get_challenge_players(cid, uid)
-        # last_nb_players = c_players['cardinal']
-        # offsets = list(range(0, last_nb_players+100, 100))
-        # requests = [get_challenge_records(cid, uid, 100, o) for o in offsets]
-        # responses = await asyncio.gather(*requests, return_exceptions=True)
-
-        # # save records
-        # loop_mid = time.time()
-        # new_records = [rec for resp, offset in zip(responses, offsets) for rec in gen_cotd_quali_challenge_block(challenge, resp, offset, int(loop_mid))]
-        # await CotdChallengeRanking.objects.abulk_create(new_records)
 
         # report and sleep
         loop_end = time.time()
@@ -141,25 +137,3 @@ async def run_cache_during_cotd_quali(cid, uid, start_date, end_date):
         if sleep_for > 0:
             logging.info(f"COTD results cache runner sleeping for {sleep_for} s")
             await asyncio.sleep(sleep_for)
-
-
-# async def get_all_challenge_records(challenge: CotdChallenge):
-#         cid = challenge.challenge_id
-#         uid = challenge.uid
-#         c_players = await get_challenge_players(cid, uid)
-#         last_nb_players = c_players['cardinal']
-#         offsets = list(range(0, last_nb_players+100, 100))
-#         requests = [get_challenge_records(cid, uid, 100, o) for o in offsets]
-#         responses = await asyncio.gather(*requests, return_exceptions=True)
-#         # create (but dont save) records
-#         loop_mid = time.time()
-#         new_records = [rec for resp, offset in zip(responses, offsets) for rec in gen_cotd_quali_challenge_block(challenge, resp, offset, int(loop_mid))]
-#         return await CotdChallengeRanking.objects.abulk_create(new_records)
-
-
-# def gen_cotd_quali_challenge_block(challenge, resp, offset, loop_mid) -> list[CotdChallengeRanking]:
-#     return [
-#         CotdChallengeRanking(challenge=challenge, req_timestamp=loop_mid,
-#                              rank=record['rank'], score=record['score'], player=record['player'])
-#         for record in resp
-#     ]
