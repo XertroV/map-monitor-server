@@ -142,9 +142,11 @@ def cached_api_challenges_id_records_maps_uid(request, challenge_id: int, map_ui
 
 
 def get_challenge_records_v2(challenge, length, offset):
-    latest_ts = CotdChallengeRanking.objects.filter(challenge=challenge).latest('req_timestamp').req_timestamp
-    rankings = CotdChallengeRanking.objects.filter(challenge=challenge, req_timestamp=latest_ts)[offset:offset+length].all()
-    return [challenge_ranking_to_json(r) for r in rankings]
+    latest_record = CotdChallengeRanking.objects.filter(challenge=challenge).latest('req_timestamp')
+    if latest_record is not None:
+        rankings = CotdChallengeRanking.objects.filter(challenge=challenge, req_timestamp=latest_record.req_timestamp)[offset:offset+length].all()
+        return [challenge_ranking_to_json(r) for r in rankings]
+    return []
 
 def get_challenge_records_v2_latest_req_ts(challenge) -> int | None:
     try:
@@ -167,15 +169,14 @@ def get_cotd_leaderboards(request, challenge_id: int, map_uid: str):
     if request.method != "GET": return HttpResponseNotAllowed(['GET'])
 
     # check for v2
-    challenge = CotdChallenge.objects.filter(challenge_id=challenge_id, uid=map_uid).first()
-    if challenge is not None:
+    challenge_v2 = CotdChallenge.objects.filter(challenge_id=challenge_id, uid=map_uid).first()
+    if challenge_v2 is not None:
         length = int(request.GET.get('length', '10'))
         offset = int(request.GET.get('offset', '0'))
-        v2_times = get_challenge_records_v2(challenge, length, offset)
-        return json_resp_q_times_from_v2(v2_times, challenge, length, offset)
+        v2_times = get_challenge_records_v2(challenge_v2, length, offset)
+        return json_resp_q_times_from_v2(v2_times, challenge_v2, length, offset)
 
-
-
+    # legacy v1
     # return CallCompApiPath("/api/challenges/" + challengeid + "/records/maps/" + mapid + "?" + LengthAndOffset(length, offset));
     challenge_res = Challenge.objects.filter(challenge_id=challenge_id)
     challenge = None
@@ -186,30 +187,35 @@ def get_cotd_leaderboards(request, challenge_id: int, map_uid: str):
     if challenge is None:
         return HttpResponseNotFound(f"Could not find challenge with id: {challenge_id}")
 
-    length = int(request.GET.get('length', '10'))
-    offset = int(request.GET.get('offset', '0'))
+    q_times = None
+    # only do this if the challenge has ended so we can cut over to v2
+    if challenge.end_ts < time.time():
+        length = int(request.GET.get('length', '10'))
+        offset = int(request.GET.get('offset', '0'))
 
-    q_times = CotdQualiTimes.objects.filter(uid=map_uid, challenge_id=challenge_id, length=length, offset=offset).first()
+        q_times = CotdQualiTimes.objects.filter(uid=map_uid, challenge_id=challenge_id, length=length, offset=offset).first()
 
-    if q_times is None:
-        q_times = CotdQualiTimes(uid=map_uid, challenge_id=challenge_id, length=length, offset=offset)
+        if q_times is None:
+            q_times = CotdQualiTimes(uid=map_uid, challenge_id=challenge_id, length=length, offset=offset)
+        else:
+            delta = time.time() - q_times.updated_ts
+            in_prog = q_times.last_update_started_ts > q_times.updated_ts and (time.time() - q_times.last_update_started_ts < 60)
+            challenge_over = q_times.updated_ts > (challenge.end_ts + QUALI_TIMES_CACHE_SECONDS * 3)
+            if not LOCAL_DEV_MODE and (challenge_over or in_prog or delta < QUALI_TIMES_CACHE_SECONDS):
+                return json_resp_q_times(q_times, challenge, refresh_in=(999999 if challenge_over else QUALI_TIMES_CACHE_SECONDS))
+
+        logging.info(f"Updating quali_times: {q_times}")
+
+        q_times.last_update_started_ts = time.time()
+        q_times.save()
+        records: list[dict] = run_async(nadeoapi.get_challenge_records(challenge_id, map_uid, length, offset))
+        for rec in records:
+            del rec['uid']
+        q_times.json_payload = json.dumps(records)
+        q_times.updated_ts = time.time()
+        q_times.save()
     else:
-        delta = time.time() - q_times.updated_ts
-        in_prog = q_times.last_update_started_ts > q_times.updated_ts and (time.time() - q_times.last_update_started_ts < 60)
-        challenge_over = q_times.updated_ts > (challenge.end_ts + QUALI_TIMES_CACHE_SECONDS * 3)
-        if not LOCAL_DEV_MODE and (challenge_over or in_prog or delta < QUALI_TIMES_CACHE_SECONDS):
-            return json_resp_q_times(q_times, challenge, refresh_in=(999999 if challenge_over else QUALI_TIMES_CACHE_SECONDS))
-
-    logging.info(f"Updating quali_times: {q_times}")
-
-    q_times.last_update_started_ts = time.time()
-    q_times.save()
-    records: list[dict] = run_async(nadeoapi.get_challenge_records(challenge_id, map_uid, length, offset))
-    for rec in records:
-        del rec['uid']
-    q_times.json_payload = json.dumps(records)
-    q_times.updated_ts = time.time()
-    q_times.save()
+        q_times = CotdQualiTimes(uid=map_uid, challenge_id=challenge_id, length=length, offset=offset)
     return json_resp_q_times(q_times, challenge)
 
 
