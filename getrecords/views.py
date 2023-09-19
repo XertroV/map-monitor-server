@@ -124,10 +124,10 @@ def get_or_insert_all_cotd_results(challenge_id: int, map_uid: str):
     rankings = []
     # check if we need to update
     if ranking is None or ranking.req_timestamp < (challenge.end_date):
-        logging.info(f"Updating rankings")
+        logging.info(f"Caching rankings")
         rankings = run_async(get_and_save_all_challenge_records(challenge))
     else:
-        logging.info(f"Using cached rankings")
+        # logging.info(f"Using cached rankings")
         rankings = CotdChallengeRanking.objects.filter(challenge=challenge, req_timestamp=ranking.req_timestamp).all()
     return rankings
 
@@ -161,8 +161,6 @@ def challenge_ranking_to_json(r: CotdChallengeRanking):
     return {
         'score': r.score, 'time': r.score, 'rank': r.rank, 'player': r.player
     }
-
-
 
 
 def get_cotd_leaderboards(request, challenge_id: int, map_uid: str):
