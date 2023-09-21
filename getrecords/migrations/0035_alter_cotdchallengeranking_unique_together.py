@@ -5,7 +5,7 @@ from django.db.models import Min, Count
 
 from getrecords.models import CotdChallengeRanking
 
-def delete_challenge_record_duplicates():
+def delete_challenge_record_duplicates(apps, schema_editor):
     non_dupe_pks = list(
         CotdChallengeRanking.objects.values('challenge', 'req_timestamp', 'rank')
             .annotate(Min('pk'), count=Count('pk'))
