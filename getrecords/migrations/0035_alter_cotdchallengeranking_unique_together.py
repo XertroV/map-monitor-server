@@ -11,13 +11,13 @@ def delete_challenge_record_duplicates(apps, schema_editor):
     print(f"Checking {nb_challenges} challenges")
     for i, challenge in enumerate(CotdChallenge.objects.all()):
         non_dupe_pks = list(
-            CotdChallengeRanking.objects.values('challenge', 'req_timestamp', 'rank')
+            CotdChallengeRanking.objects.filter(challenge__pk=challenge.pk).values('challenge', 'req_timestamp', 'rank')
                 .annotate(Min('pk'), count=Count('pk'))
                 .order_by()
                 .values_list('pk__min', flat=True)
         )
 
-        dupes = CotdChallengeRanking.objects.exclude(pk__in=non_dupe_pks)
+        dupes = CotdChallengeRanking.objects.filter(challenge__pk=challenge.pk).exclude(pk__in=non_dupe_pks)
         dupes.delete()
         print(f"Done {challenge.challenge_id}; {i / nb_challenges * 100:.1f}")
     print(f"Done all")
