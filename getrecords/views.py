@@ -178,6 +178,7 @@ def get_challenge_records_v2_latest_req_ts(challenge) -> int | None:
     if latest:
         return latest.req_timestamp
     return None
+
 def get_challenge_records_v2_latest(challenge) -> CotdChallengeRanking | None:
     try:
         rank1 = CotdChallengeRanking.objects.filter(challenge=challenge).latest('req_timestamp')
@@ -198,15 +199,15 @@ def cached_api_challenges_id_records_maps_uid_players(request: HttpRequest, chal
     '''
     if request.method not in ["GET", "POST"]: return HttpResponseNotAllowed(['GET', 'POST'])
     challenge = CotdChallenge.objects.filter(challenge_id=challenge_id, uid=map_uid).first()
-    if (challenge is None):
-        return JsonResponse({"uid": "", "cardinal": 0, "records": []})
-        # return HttpResponseNotFound(f"Challenge / UID combination not found: {challenge_id}, {map_uid}")
-
     resp = dict(
         uid=challenge.uid,
         cardinal=0,
         records=list()
     )
+    if (challenge is None):
+        return JsonResponse(resp)
+        # return HttpResponseNotFound(f"Challenge / UID combination not found: {challenge_id}, {map_uid}")
+
     player_ids = []
     if request.method == "GET":
         player_ids = request.GET.get('players[]', '').split(',')
@@ -214,7 +215,6 @@ def cached_api_challenges_id_records_maps_uid_players(request: HttpRequest, chal
         player_ids = json.loads(request.body).get('players', [])
     req_ts = get_challenge_records_v2_latest_req_ts(challenge)
     if req_ts is not None:
-        # todo: bug where players are duplicated
         records = CotdChallengeRanking.objects.filter(challenge=challenge, req_timestamp=req_ts, player__in=player_ids).all()
         resp['records'] = [challenge_ranking_to_json(r) for r in records]
         resp['cardinal'] = CotdChallengeRanking.objects.filter(challenge=challenge, req_timestamp=req_ts).count()

@@ -5,6 +5,7 @@ from django.db.models import Min, Count
 
 from getrecords.models import CotdChallenge
 
+# omg this was very slow but eventually worked
 def delete_challenge_record_duplicates(apps, schema_editor):
     CotdChallengeRanking = apps.get_model("getrecords", "CotdChallengeRanking")
     nb_challenges = CotdChallenge.objects.count()
