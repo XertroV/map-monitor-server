@@ -160,24 +160,29 @@ def cached_api_challenges_id_records_maps_uid(request, challenge_id: int, map_ui
 
 
 def get_challenge_records_v2(challenge, length, offset):
-    latest_record = get_challenge_records_v2_latest_req_ts(challenge)
+    latest_record = get_challenge_records_v2_latest(challenge)
     if latest_record is not None:
         rankings = CotdChallengeRanking.objects.filter(challenge=challenge, req_timestamp=latest_record.req_timestamp)[offset:offset+length].all()
         return [challenge_ranking_to_json(r) for r in rankings]
     return []
 
 def get_challenge_records_v2_by_ranks(challenge, ranks: list[int]):
-    latest_record = get_challenge_records_v2_latest_req_ts(challenge)
+    latest_record = get_challenge_records_v2_latest(challenge)
     if latest_record is not None:
         rankings = CotdChallengeRanking.objects.filter(challenge=challenge, req_timestamp=latest_record.req_timestamp, rank__in=ranks).all()
         return [challenge_ranking_to_json(r) for r in rankings]
     return []
 
 def get_challenge_records_v2_latest_req_ts(challenge) -> int | None:
+    latest = get_challenge_records_v2_latest(challenge)
+    if latest:
+        return latest.req_timestamp
+    return None
+def get_challenge_records_v2_latest(challenge) -> CotdChallengeRanking | None:
     try:
         rank1 = CotdChallengeRanking.objects.filter(challenge=challenge).latest('req_timestamp')
         if rank1 is not None:
-            return rank1.req_timestamp
+            return rank1
     except CotdChallengeRanking.DoesNotExist as e:
         return None
 
