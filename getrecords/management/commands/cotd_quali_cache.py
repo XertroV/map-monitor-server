@@ -46,6 +46,9 @@ async def cotd_quali_cache_main():
         try:
             logging.info(f"Getting next COTD info.")
             next_cotd = await get_cotd_current()
+            while next_cotd is None:
+                await asyncio.sleep(3.14)
+                next_cotd = await get_cotd_current()
             # set to 1 minute after the hour
             start_date = next_cotd['challenge']['startDate']
             end_date = next_cotd['challenge']['endDate']

@@ -66,7 +66,7 @@ class CotdChallengeRanking(models.Model):
     player: str = models.CharField("player wsid", max_length=36, db_index=True)
     class Meta:
         ordering = ["-req_timestamp", "rank"]
-
+        unique_together = [["req_timestamp", "rank", "challenge"]]
 
 
 LONG_MAP_SECS = 315

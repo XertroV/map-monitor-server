@@ -160,14 +160,14 @@ def cached_api_challenges_id_records_maps_uid(request, challenge_id: int, map_ui
 
 
 def get_challenge_records_v2(challenge, length, offset):
-    latest_record = CotdChallengeRanking.objects.filter(challenge=challenge).latest('req_timestamp')
+    latest_record = get_challenge_records_v2_latest_req_ts(challenge)
     if latest_record is not None:
         rankings = CotdChallengeRanking.objects.filter(challenge=challenge, req_timestamp=latest_record.req_timestamp)[offset:offset+length].all()
         return [challenge_ranking_to_json(r) for r in rankings]
     return []
 
 def get_challenge_records_v2_by_ranks(challenge, ranks: list[int]):
-    latest_record = CotdChallengeRanking.objects.filter(challenge=challenge).latest('req_timestamp')
+    latest_record = get_challenge_records_v2_latest_req_ts(challenge)
     if latest_record is not None:
         rankings = CotdChallengeRanking.objects.filter(challenge=challenge, req_timestamp=latest_record.req_timestamp, rank__in=ranks).all()
         return [challenge_ranking_to_json(r) for r in rankings]
@@ -193,7 +193,9 @@ def cached_api_challenges_id_records_maps_uid_players(request: HttpRequest, chal
     '''
     if request.method not in ["GET", "POST"]: return HttpResponseNotAllowed(['GET', 'POST'])
     challenge = CotdChallenge.objects.filter(challenge_id=challenge_id, uid=map_uid).first()
-    if (challenge is None): return HttpResponseNotFound(f"Challenge / UID combination not found: {challenge_id}, {map_uid}")
+    if (challenge is None):
+        return JsonResponse({"uid": "", "cardinal": 0, "records": []})
+        # return HttpResponseNotFound(f"Challenge / UID combination not found: {challenge_id}, {map_uid}")
 
     resp = dict(
         uid=challenge.uid,
@@ -207,6 +209,7 @@ def cached_api_challenges_id_records_maps_uid_players(request: HttpRequest, chal
         player_ids = json.loads(request.body).get('players', [])
     req_ts = get_challenge_records_v2_latest_req_ts(challenge)
     if req_ts is not None:
+        # todo: bug where players are duplicated
         records = CotdChallengeRanking.objects.filter(challenge=challenge, req_timestamp=req_ts, player__in=player_ids).all()
         resp['records'] = [challenge_ranking_to_json(r) for r in records]
         resp['cardinal'] = CotdChallengeRanking.objects.filter(challenge=challenge, req_timestamp=req_ts).count()
