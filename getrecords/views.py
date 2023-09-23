@@ -200,7 +200,7 @@ def cached_api_challenges_id_records_maps_uid_players(request: HttpRequest, chal
     if request.method not in ["GET", "POST"]: return HttpResponseNotAllowed(['GET', 'POST'])
     challenge = CotdChallenge.objects.filter(challenge_id=challenge_id, uid=map_uid).first()
     resp = dict(
-        uid=challenge.uid,
+        uid=map_uid,
         cardinal=0,
         records=list()
     )
