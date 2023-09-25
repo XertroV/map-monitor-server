@@ -26,8 +26,14 @@ class Command(BaseCommand):
     #     parser.add_argument("poll_ids", nargs="+", type=int)
 
     def handle(self, *args, **options):
-        run_cotd_quali_cache(self.loop)
-        self.loop.run_forever()
+        while True:
+            try:
+                self.loop = asyncio.new_event_loop()
+                run_cotd_quali_cache(self.loop)
+                self.loop.run_forever()
+            except Exception as e:
+                logging.warn(f"Exception in main COTD quali BG job; sleeping and restarting. Exception: {e}")
+                time.sleep(60)
 
 
 def run_cotd_quali_cache(loop: asyncio.AbstractEventLoop):

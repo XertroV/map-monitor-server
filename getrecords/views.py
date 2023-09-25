@@ -1,15 +1,18 @@
 import asyncio
+import base64
 from datetime import timedelta
 import json
 import logging
 import time
 from typing import Coroutine, Optional
+from PIL import Image
+from io import BytesIO
 
 from numpy import random
 
 from django.db import IntegrityError
 from django.shortcuts import render, get_object_or_404
-from django.http import HttpResponseRedirect, JsonResponse, HttpResponseNotAllowed, HttpRequest, HttpResponseForbidden, HttpResponse, HttpResponseNotFound, HttpResponseBadRequest, HttpResponsePermanentRedirect
+from django.http import HttpResponseRedirect, JsonResponse, HttpResponseNotAllowed, HttpRequest, HttpResponseForbidden, HttpResponse, HttpResponseNotFound, HttpResponseBadRequest, HttpResponsePermanentRedirect, FileResponse
 from django.core import serializers
 from django.db.models import Model
 from django.utils import timezone
@@ -640,3 +643,18 @@ class JsonErrorResponse(JsonResponse):
     def __init__(self, *args, status_code=500, **kwargs):
         super().__init__(*args, **kwargs)
         self.status_code = status_code
+
+
+
+
+def convert_webp_to_png(request: HttpRequest):
+    if (request.method != "POST"): return HttpResponseNotAllowed(['POST'])
+    if len(request.body) > 8000: return HttpResponseBadRequest("Image too big, max 8kb after b64 encoding")
+    im = Image.open(BytesIO(base64.decodebytes(request.body)), formats=['webp'])
+    im = im.resize((64, 64))
+    im = im.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
+    bs = BytesIO()
+    im.save(bs, "png", optimize=True)
+    bs.seek(0)
+    print(f'generated size: {bs.tell()}')
+    return FileResponse(bs)
