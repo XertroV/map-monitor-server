@@ -40,4 +40,5 @@ urlpatterns = [
     # path(f'debug/nb_dup_tids', views.debug_nb_dup_tids),
 
     path(f'e++/icons/convert/webp', views.convert_webp_to_png),
+    path(f'e++/icons/convert/rgba', views.convert_rgba_to_png),
 ]

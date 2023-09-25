@@ -7,6 +7,7 @@ import time
 from typing import Coroutine, Optional
 from PIL import Image
 from io import BytesIO
+import numpy as np
 
 from numpy import random
 
@@ -645,16 +646,31 @@ class JsonErrorResponse(JsonResponse):
         self.status_code = status_code
 
 
-
+def chunks(lst, n):
+    """Yield successive n-sized chunks from lst."""
+    for i in range(0, len(lst), n):
+        yield lst[i:i + n]
 
 def convert_webp_to_png(request: HttpRequest):
     if (request.method != "POST"): return HttpResponseNotAllowed(['POST'])
-    if len(request.body) > 8000: return HttpResponseBadRequest("Image too big, max 8kb after b64 encoding")
+    if len(request.body) > 12000: return HttpResponseBadRequest("Image too big, max 12kb after b64 encoding")
     im = Image.open(BytesIO(base64.decodebytes(request.body)), formats=['webp'])
+    return finish_icon_img_request(im)
+
+def convert_rgba_to_png(request: HttpRequest):
+    if (request.method != "POST"): return HttpResponseNotAllowed(['POST'])
+    if len(request.body) > 24000: return HttpResponseBadRequest("Image too big, max 24kb after b64 encoding")
+    bs = base64.decodebytes(request.body)
+    if len(bs) % 4 != 0: return HttpResponseBadRequest("Image bytes must be len%4==0 (and in bgra format)")
+    img_bytes = b''.join(bytes((r,g,b,a)) for (b,g,r,a) in chunks([b for b in bs], 4))
+    im = Image.frombytes('RGBA', (64, 64), img_bytes)
+    return finish_icon_img_request(im)
+
+def finish_icon_img_request(im: Image):
     im = im.resize((64, 64))
     im = im.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
     bs = BytesIO()
     im.save(bs, "png", optimize=True)
-    bs.seek(0)
     print(f'generated size: {bs.tell()}')
+    bs.seek(0)
     return FileResponse(bs)
