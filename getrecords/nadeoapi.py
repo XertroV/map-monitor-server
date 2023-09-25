@@ -283,7 +283,11 @@ async def get_cotd_current():
         async with await session.get(COTD_CURRENT_URL) as resp:
             if resp.status == 200:
                 return await resp.json()
-            logging.warn(f"api COTD current failed: {resp.status}, {await resp.text()}")
+            if resp.status == 204:
+                logging.warn(f"api COTD current 204, sleeping for 180 seconds")
+                await asyncio.sleep(180)
+            else:
+                logging.warn(f"api COTD current failed: {resp.status}, {await resp.text()}")
             return None
 
 
