@@ -8,6 +8,7 @@ from typing import Coroutine, Optional
 from PIL import Image
 from io import BytesIO
 import numpy as np
+import zipfile
 
 from numpy import random
 
@@ -674,3 +675,37 @@ def finish_icon_img_request(im: Image):
     print(f'generated size: {bs.tell()}')
     bs.seek(0)
     return FileResponse(bs)
+
+
+
+def lm_conversion_req(request: HttpRequest):
+    if (request.method != "POST"): return HttpResponseNotAllowed(['POST'])
+    if len(request.body) > 1024**2 * 4: return HttpResponseBadRequest("LM zip too big, max 4mb after b64 encoding")
+    zip_bytes = BytesIO(base64.decodebytes(request.body))
+    zip_bytes.seek(0)
+    output = BytesIO()
+    with zipfile.ZipFile(zip_bytes) as zf:
+        for name in zf.namelist():
+            processed = process_lm_file(name, zf)
+            if processed:
+                new_name = name[:-5] + ".png"
+                output.write(len(new_name).to_bytes(4, 'little'))
+                output.write(new_name.encode())
+                # output.write(b'\x00')
+                data_size = processed.tell()
+                processed.seek(0)
+                output.write(data_size.to_bytes(4, 'little'))
+                output.write(processed.read(data_size))
+                print(f"{new_name}: {data_size}")
+    output.seek(0)
+    return FileResponse(output)
+
+def process_lm_file(name: str, zf: zipfile.ZipFile) -> BytesIO | None:
+    can_process = name == "ProbeGrid.webp" or (name.startswith("LightMap") and name.endswith(".webp"))
+    if not can_process: return None
+    data = zf.read(name)
+    im = Image.open(BytesIO(data), formats=['webp'])
+    im = im.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
+    bs = BytesIO()
+    im.save(bs, "png")
+    return bs
