@@ -19,7 +19,7 @@ from django.core import serializers
 from django.db.models import Model
 from django.utils import timezone
 from django.db import transaction
-from django.core.cache import cache
+from django.views.decorators.cache import cache_page
 
 from getrecords.http import get_session, http_head_okay
 from getrecords.management.commands.tmx_scraper import get_scrape_state
@@ -28,6 +28,7 @@ from getrecords.rmc_exclusions import EXCLUDE_FROM_RMC
 from getrecords.s3 import upload_ghost_to_s3
 from getrecords.tmx_maps import get_tmx_tags_cached
 from getrecords.utils import model_to_dict, run_async, sha_256_b_ts
+from mapmonitor.settings import CACHE_COTD_TTL, CACHE_ICONS_TTL
 
 from .models import CachedValue, Challenge, CotdChallenge, CotdChallengeRanking, CotdQualiTimes, Ghost, MapTotalPlayers, TmxMap, TmxMapAT, Track, TrackStats, User, UserStats, UserTrackPlay
 from .nadeoapi import LOCAL_DEV_MODE, core_get_maps_by_uid, get_and_save_all_challenge_records, nadeo_get_nb_players_for_map, nadeo_get_surround_for_map
@@ -111,7 +112,7 @@ def get_players_cotd_quali_history(request: HttpRequest, wsid: str):
     # CotdChallengeRanking()
     pass
 
-
+# dev interface (idempotent)
 def get_all_cotd_results(req, challenge_id: int, map_uid: str):
     # 4942, QAT5zOEWq65ZVGRbF6QveBMlIHf
     if req.method != "GET": return HttpResponseNotAllowed(['GET'])
@@ -151,6 +152,8 @@ def get_or_insert_all_cotd_results(challenge_id: int, map_uid: str):
     return rankings
 
 COTD_UPPER_LIMIT = 20000
+
+@cache_page(CACHE_COTD_TTL)
 def cached_api_challenges_id_records_maps_uid(request, challenge_id: int, map_uid: str):
     if request.method != "GET": return HttpResponseNotAllowed(['GET'])
     challenge = CotdChallenge.objects.filter(challenge_id=challenge_id, uid=map_uid).first()
@@ -199,6 +202,7 @@ def challenge_ranking_to_json(r: CotdChallengeRanking):
     }
 
 
+@cache_page(CACHE_COTD_TTL)
 def cached_api_challenges_id_records_maps_uid_players(request: HttpRequest, challenge_id: int, map_uid: str):
     ''' caches /api/challenges/ID/records/maps/UID/players
     '''
@@ -226,6 +230,7 @@ def cached_api_challenges_id_records_maps_uid_players(request: HttpRequest, chal
     return JsonResponse(resp)
 
 
+@cache_page(CACHE_COTD_TTL)
 def cached_api_cotd_current(request: HttpRequest):
     next_cotd = CachedValue.objects.filter(name=CURRENT_COTD_KEY).first()
     if next_cotd is not None:
@@ -234,7 +239,7 @@ def cached_api_cotd_current(request: HttpRequest):
 
 
 
-
+@cache_page(CACHE_COTD_TTL)
 def get_cotd_leaderboards(request, challenge_id: int, map_uid: str):
     if request.method != "GET": return HttpResponseNotAllowed(['GET'])
 
@@ -310,12 +315,15 @@ def get_and_cache_challenge(_id: int):
 
 
 
+@cache_page(CACHE_COTD_TTL)
 def get_nb_players(request, map_uid):
     if request.method != "GET": return HttpResponseNotAllowed(['GET'])
     mtp = get_object_or_404(MapTotalPlayers, uid=map_uid)
     return json_resp(mtp)
 
+
 # @requires_openplanet_auth(MAP_MONITOR_PLUGIN_ID)
+@cache_page(CACHE_COTD_TTL)
 def refresh_nb_players(request, map_uid, user=None):
     if request.method != "GET": return HttpResponseNotAllowed(['GET'])
     return json_resp_mtp(run_async(refresh_nb_players_inner(map_uid)))
@@ -348,6 +356,7 @@ def refresh_nb_players(request, map_uid, user=None):
 
 
 
+@cache_page(CACHE_COTD_TTL)
 def get_surround_score(request, map_uid, score):
     if request.method != "GET": return HttpResponseNotAllowed(['GET'])
     return JsonResponse(run_async(nadeo_get_surround_for_map(map_uid, score)))
@@ -651,12 +660,14 @@ def chunks(lst, n):
     for i in range(0, len(lst), n):
         yield lst[i:i + n]
 
+@cache_page(CACHE_ICONS_TTL)
 def convert_webp_to_png(request: HttpRequest):
     if (request.method != "POST"): return HttpResponseNotAllowed(['POST'])
     if len(request.body) > 12000: return HttpResponseBadRequest("Image too big, max 12kb after b64 encoding")
     im = Image.open(BytesIO(base64.decodebytes(request.body)), formats=['webp'])
     return finish_icon_img_request(im)
 
+@cache_page(CACHE_ICONS_TTL)
 def convert_rgba_to_png(request: HttpRequest):
     if (request.method != "POST"): return HttpResponseNotAllowed(['POST'])
     if len(request.body) > 24000: return HttpResponseBadRequest("Image too big, max 24kb after b64 encoding")
@@ -674,7 +685,6 @@ def finish_icon_img_request(im: Image):
     print(f'generated size: {bs.tell()}')
     bs.seek(0)
     return FileResponse(bs)
-
 
 
 def lm_conversion_req(request: HttpRequest):

@@ -28,6 +28,20 @@ environ.Env.read_env()
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": env('REDIS_URL', default="redis://127.0.0.1:6379"),
+    }
+}
+
+# cache stuff for 10 seconds for COTD
+CACHE_COTD_TTL = 10
+
+# cache icons for 10 years
+CACHE_ICONS_TTL = 86400 * 365 * 10
+
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.1/howto/deployment/checklist/
 
