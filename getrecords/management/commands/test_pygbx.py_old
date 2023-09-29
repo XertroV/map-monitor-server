@@ -1,0 +1,42 @@
+import asyncio
+from pathlib import Path
+from pygbx import GbxType, Gbx
+
+from django.core.management.base import BaseCommand, CommandError
+
+class Command(BaseCommand):
+    help = "Run all bg jobs"
+    loop = asyncio.new_event_loop()
+
+    # def add_arguments(self, parser):
+    #     parser.add_argument("poll_ids", nargs="+", type=int)
+
+    def handle(self, *args, **options):
+        # run_all_bg_jobs_main(self.loop)
+        # self.loop.run_forever()
+        test_gbx()
+
+
+def run_all_bg_jobs_main(loop: asyncio.AbstractEventLoop):
+    pass
+
+
+def test_gbx():
+    g = Gbx(Path('~/Trackmania/Items/zzzy_DOWN_FIREWORK_5.Item.Gbx').expanduser().absolute().read_bytes()[:4000])
+    g = Gbx(Path('~/Trackmania/Items/zzzy_DOWN_FIREWORK_10.Item.Gbx').expanduser().absolute().read_bytes()[:4000])
+    # g = Gbx(Path('~/Trackmania/Items/Plastic_ducks001/Plastic_duck.Item.Gbx').expanduser().absolute().__str__())
+    print(f"g: {g}")
+    print(dir(g))
+    print(g.classes)
+    model = g.get_class_by_id(0x2E002000)
+    bp = g.find_raw_chunk_id(0x2E002020)
+    bp = g.find_raw_chunk_id(0x2E002004)
+    print(f"model: {model}, bp: {bp}")
+    if model:
+        # print(f"model[0]: {model[0]}")
+        print(model.__dict__)
+        print(dir(model))
+    if bp:
+        print(bp.read_int32())
+        print(bp.read_string())
+        print(bp.read_byte())
