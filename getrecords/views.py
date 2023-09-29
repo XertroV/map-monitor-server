@@ -264,10 +264,9 @@ def get_cotd_leaderboards(request, challenge_id: int, map_uid: str):
 
     q_times = None
     # only do this if the challenge has ended so we can cut over to v2
+    length = int(request.GET.get('length', '10'))
+    offset = int(request.GET.get('offset', '0'))
     if challenge.end_ts < time.time():
-        length = int(request.GET.get('length', '10'))
-        offset = int(request.GET.get('offset', '0'))
-
         q_times = CotdQualiTimes.objects.filter(uid=map_uid, challenge_id=challenge_id, length=length, offset=offset).first()
 
         if q_times is None:
