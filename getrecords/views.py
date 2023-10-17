@@ -28,7 +28,7 @@ from getrecords.rmc_exclusions import EXCLUDE_FROM_RMC
 from getrecords.s3 import upload_ghost_to_s3
 from getrecords.tmx_maps import get_tmx_tags_cached
 from getrecords.utils import model_to_dict, run_async, sha_256_b_ts
-from mapmonitor.settings import CACHE_COTD_TTL, CACHE_ICONS_TTL
+from mapmonitor.settings import CACHE_5_MIN, CACHE_COTD_TTL, CACHE_ICONS_TTL
 
 from .models import CachedValue, Challenge, CotdChallenge, CotdChallengeRanking, CotdQualiTimes, Ghost, MapTotalPlayers, TmxMap, TmxMapAT, Track, TrackStats, User, UserStats, UserTrackPlay
 from .nadeoapi import LOCAL_DEV_MODE, core_get_maps_by_uid, get_and_save_all_challenge_records, nadeo_get_nb_players_for_map, nadeo_get_surround_for_map
@@ -161,9 +161,14 @@ def cached_api_challenges_id_records_maps_uid(request, challenge_id: int, map_ui
     length = int(request.GET.get('length', '10'))
     offset = int(request.GET.get('offset', '0'))
     just_cutoffs = 'cutoffs' in request.GET
-    resp = get_challenge_records_v2_by_ranks(challenge, list(range(64, COTD_UPPER_LIMIT, 64))) \
-            if just_cutoffs \
-            else get_challenge_records_v2(challenge, length, offset)
+    resp = []
+    if just_cutoffs:
+        latest_record = get_challenge_records_v2_latest(challenge)
+        if latest_record is not None:
+            worst_time = CotdChallengeRanking.objects.filter(challenge=challenge, req_timestamp=latest_record.req_timestamp).order_by('rank').last()
+            resp = get_challenge_records_v2_by_ranks(challenge, list(range(64, COTD_UPPER_LIMIT, 64)) + [worst_time.rank])
+    else:
+        resp = get_challenge_records_v2(challenge, length, offset)
     return JsonResponse(resp, safe=False)
 
 
@@ -356,7 +361,7 @@ def refresh_nb_players(request, map_uid, user=None):
 
 
 
-@cache_page(CACHE_COTD_TTL)
+@cache_page(CACHE_5_MIN)
 def get_surround_score(request, map_uid, score):
     if request.method != "GET": return HttpResponseNotAllowed(['GET'])
     return JsonResponse(run_async(nadeo_get_surround_for_map(map_uid, score)))
@@ -689,7 +694,7 @@ def finish_icon_img_request(im: Image):
 
 def lm_conversion_req(request: HttpRequest):
     if (request.method != "POST"): return HttpResponseNotAllowed(['POST'])
-    if len(request.body) > 1024**2 * 4: return HttpResponseBadRequest("LM zip too big, max 4mb after b64 encoding")
+    if len(request.body) > 1024**2 * 6: return HttpResponseBadRequest("LM zip too big, max 4mb after b64 encoding")
     zip_bytes = BytesIO(base64.decodebytes(request.body))
     zip_bytes.seek(0)
     output = BytesIO()

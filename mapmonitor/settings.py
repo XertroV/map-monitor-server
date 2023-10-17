@@ -38,6 +38,9 @@ CACHES = {
 # cache stuff for 10 seconds for COTD
 CACHE_COTD_TTL = 10
 
+# cache stuff for 5 min
+CACHE_5_MIN = 300
+
 # cache icons for 10 years
 CACHE_ICONS_TTL = 86400 * 365 * 10
 
