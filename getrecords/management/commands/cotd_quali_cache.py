@@ -131,7 +131,7 @@ async def run_cache_during_cotd_quali(cid, uid, start_date, end_date):
         logging.info(f"COTD results cache runner starting at {loop_start}, running for another {end_date - loop_start} seconds")
 
         # loop and get all records for current size and save
-        new_records = await get_and_save_all_challenge_records(challenge)
+        await get_and_save_all_challenge_records(challenge)
 
         # report and sleep
         loop_end = time.time()

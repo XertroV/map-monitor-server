@@ -65,7 +65,7 @@ async def run_tmx_scraper(state: TmxMapScrapeState, update_state: TmxMapScrapeSt
         start = time.time()
         if await is_close_to_cotd():
             logging.info(f"tmx scraper sleeping as we are close to COTD")
-            await asyncio.sleep(60000)
+            await asyncio.sleep(60)
             continue
         try:
             # to any fixes first (should be batched)
@@ -466,7 +466,7 @@ async def check_tmx_unbeaten_loop():
         start = time.time()
         if await is_close_to_cotd():
             logging.info(f"tmx scraper sleeping as we are close to COTD")
-            await asyncio.sleep(60000)
+            await asyncio.sleep(60)
             continue
         try:
             await update_unbeatable_maps_list()
