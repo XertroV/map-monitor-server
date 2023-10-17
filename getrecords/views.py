@@ -239,7 +239,7 @@ def cached_api_challenges_id_records_maps_uid_players(request: HttpRequest, chal
 def cached_api_cotd_current(request: HttpRequest):
     next_cotd = CachedValue.objects.filter(name=CURRENT_COTD_KEY).first()
     if next_cotd is not None:
-        return HttpResponse(next_cotd.value)
+        return HttpResponse(next_cotd.value, content_type='application/json')
     return JsonResponse(dict(error='not yet initialized'))
 
 

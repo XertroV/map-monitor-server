@@ -11,12 +11,7 @@ from django.core.management.base import BaseCommand, CommandError
 from getrecords.http import get_session
 from getrecords.models import CachedValue, CotdChallenge, CotdChallengeRanking, MapTotalPlayers, TmxMap, TmxMapAT, TmxMapScrapeState
 from getrecords.nadeoapi import LOCAL_DEV_MODE, get_and_save_all_challenge_records, get_challenge, get_challenge_players, get_challenge_records, get_cotd_current, get_map_records, get_totd_maps, run_nadeo_services_auth
-from getrecords.tmx_maps import tmx_date_to_ts
-from getrecords.unbeaten_ats import TMX_MAPPACKID_UNBEATABLE_ATS, TMXIDS_UNBEATABLE_ATS
-from getrecords.utils import chunk, model_to_dict
 from getrecords.view_logic import CURRENT_COTD_KEY, RECENTLY_BEATEN_ATS_CV_NAME, TRACK_UIDS_CV_NAME, UNBEATEN_ATS_CV_NAME, get_recently_beaten_ats_query, get_tmx_map, get_tmx_map_pack_maps, get_unbeaten_ats_query, refresh_nb_players_inner, update_tmx_map
-
-from getrecords.management.commands.tmx_scraper import _run_async, run_all_tmx_scrapers
 
 class Command(BaseCommand):
     help = "Run cotd quali bg job"

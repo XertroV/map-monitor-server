@@ -14,7 +14,7 @@ from getrecords.nadeoapi import LOCAL_DEV_MODE, get_map_records, run_nadeo_servi
 from getrecords.tmx_maps import tmx_date_to_ts
 from getrecords.unbeaten_ats import TMX_MAPPACKID_UNBEATABLE_ATS, TMXIDS_UNBEATABLE_ATS
 from getrecords.utils import chunk, model_to_dict
-from getrecords.view_logic import RECENTLY_BEATEN_ATS_CV_NAME, TRACK_UIDS_CV_NAME, UNBEATEN_ATS_CV_NAME, get_recently_beaten_ats_query, get_tmx_map, get_tmx_map_pack_maps, get_unbeaten_ats_query, refresh_nb_players_inner, update_tmx_map
+from getrecords.view_logic import CURRENT_COTD_KEY, RECENTLY_BEATEN_ATS_CV_NAME, TRACK_UIDS_CV_NAME, UNBEATEN_ATS_CV_NAME, get_recently_beaten_ats_query, get_tmx_map, get_tmx_map_pack_maps, get_unbeaten_ats_query, refresh_nb_players_inner, update_tmx_map
 
 
 # AT_CHECK_BATCH_SIZE = 360
@@ -36,10 +36,6 @@ class Command(BaseCommand):
         self.loop.run_forever()
 
 
-def _run_async(loop: asyncio.AbstractEventLoop, coro: Coroutine):
-        task = loop.create_task(coro)
-        loop.run_until_complete(task)
-        return task.result()
 
 def run_all_tmx_scrapers(loop: asyncio.AbstractEventLoop):
     logging.info(f"Starting TMX Scraper")
@@ -67,6 +63,10 @@ async def run_tmx_scraper(state: TmxMapScrapeState, update_state: TmxMapScrapeSt
     loop_seconds = 300
     while True:
         start = time.time()
+        if await is_close_to_cotd():
+            logging.info(f"tmx scraper sleeping as we are close to COTD")
+            await asyncio.sleep(60000)
+            continue
         try:
             # to any fixes first (should be batched)
             await fix_at_beaten_first_nb()
@@ -91,6 +91,22 @@ async def run_tmx_scraper(state: TmxMapScrapeState, update_state: TmxMapScrapeSt
             logging.warn(f"Exception in txm scraper: {e}. Sleeping for {sduration}s and trying again")
             traceback.print_exc()
             await asyncio.sleep(sduration)
+
+
+async def is_close_to_cotd():
+    next_cotd = await CachedValue.objects.filter(name=CURRENT_COTD_KEY).afirst()
+    if next_cotd is None: return False
+    try:
+        next_cotd_j = json.loads(next_cotd.value)
+        c = next_cotd_j['challenge']
+        s = c['startDate']
+        e = c['endDate']
+        # close = within 6 minutes beforehand or during
+        return (s - 6 * 60) <= time.time() <= e
+    except Exception as e:
+        logging.warn(f"Failed to read next COTD times: {e}")
+    return False
+
 
 async def scrape_range(state: TmxMapScrapeState, latest: int):
     while state.LastScraped < latest:
@@ -448,6 +464,10 @@ async def check_tmx_unbeaten_loop():
     sleep_len = 86400 // 6
     while True:
         start = time.time()
+        if await is_close_to_cotd():
+            logging.info(f"tmx scraper sleeping as we are close to COTD")
+            await asyncio.sleep(60000)
+            continue
         try:
             await update_unbeatable_maps_list()
             await run_check_tmx_unbeaten_removed_updated()
