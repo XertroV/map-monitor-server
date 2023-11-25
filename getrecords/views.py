@@ -28,7 +28,7 @@ from getrecords.rmc_exclusions import EXCLUDE_FROM_RMC
 from getrecords.s3 import upload_ghost_to_s3
 from getrecords.tmx_maps import get_tmx_tags_cached
 from getrecords.utils import model_to_dict, run_async, sha_256_b_ts
-from mapmonitor.settings import CACHE_5_MIN, CACHE_COTD_TTL, CACHE_ICONS_TTL
+from mapmonitor.settings import CACHE_5_MIN, CACHE_8HRS_TTL, CACHE_COTD_TTL, CACHE_ICONS_TTL
 
 from .models import CachedValue, Challenge, CotdChallenge, CotdChallengeRanking, CotdQualiTimes, Ghost, MapTotalPlayers, TmxMap, TmxMapAT, Track, TrackStats, User, UserStats, UserTrackPlay
 from .nadeoapi import LOCAL_DEV_MODE, core_get_maps_by_uid, get_and_save_all_challenge_records, nadeo_get_nb_players_for_map, nadeo_get_surround_for_map
@@ -317,6 +317,13 @@ def get_and_cache_challenge(_id: int):
     except Exception as e:
         logging.error(f"Failed to save challenge: {e}, returning it anyway")
     return challenge
+
+
+
+# @cache_page(CACHE_8HRS_TTL)
+# def get_player_stats(request, wsid):
+
+
 
 
 

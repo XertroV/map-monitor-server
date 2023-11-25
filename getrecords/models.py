@@ -156,6 +156,9 @@ class TmxMap(models.Model):
             kwargs['UpdateTimestamp'] = tmx_date_to_ts(kwargs['UpdatedAt'])
             kwargs['DifficultyInt'] = difficulty_to_int(kwargs["DifficultyName"])
 
+            if 'VehicleName' not in kwargs:
+                kwargs['VehicleName'] = "!Unknown!"
+
             TmxMap.RemoveKeysFromTMX(kwargs)
 
             kwargs['LengthSecs'] = LengthSecs

@@ -1,7 +1,9 @@
 import asyncio
 from dataclasses import dataclass
+import json
 import logging
 import math
+from pathlib import Path
 import random
 import time
 from aiohttp import BasicAuth
@@ -504,3 +506,79 @@ async def run_club_room_creation_test():
     logging.info(f"deleting room")
     await delete_club_room(room_resp['activityId'])
     logging.info(f"Deleted room")
+
+
+
+async def upload_map(map_file: str, map_id: str, map_uid: str, map_name: str, author_id: str, at: int, gold: int, silver: int, bronze: int, token: str = ""):
+    map_path = Path(map_file)
+    map_bytes = map_path.read_bytes()
+    url = f"https://prod.trackmania.core.nadeo.online/maps/{map_id}"
+    boundary = "BoundaryAvd6SChorflHbz03MQHQyJWA92quH6vii3RgZ9bc"
+
+    content = f"""--{boundary}
+Content-Disposition: form-data; name="nadeoservices-core-parameters"\r
+Content-Type: application/json\r
+
+{{
+  "isPlayable" : true,
+  "authorScore" : {at},
+  "goldScore" : {gold},
+  "silverScore" : {silver},
+  "bronzeScore" : {bronze},
+  "createdWithGamepadEditor" : false,
+  "createdWithSimpleEditor" : false,
+  "name" : "{map_name}",
+  "mapType" : "TrackMania\\\\TM_Race",
+  "mapStyle" : "",
+  "collectionName" : "Stadium",
+  "author" : "{author_id}",
+  "mapUid" : "{map_uid}"
+}}
+--{boundary}
+Content-Disposition: form-data; name="data"; filename="{map_path.name}"\r
+Content-Type: application/octet-stream\r
+Content-Transfer-Encoding: binary\r
+
+""".encode()
+    print(f"DEV Original payload:\n{content}")
+    content = content + map_bytes
+    content = content + f"\n--{boundary}--\n".encode()
+
+    headers = {
+        "accept": "*/*",
+        "accept-encoding": "deflate,gzip,identity",
+        # "user-agent": "ManiaPlanet/3.3.0 (Win64; rv: 2023-09-25_23_51; context: none; distro: AZURO)",
+        "pragma": "no-cache",
+        "cache-control": "no-cache, no-store, must-revalidate",
+        "accept-language": "en-US,en",
+        "nadeo-game-build": "2023-09-25_23_51",
+        "nadeo-game-crossplay": "1",
+        "nadeo-game-lang": "en-US",
+        "nadeo-game-name": "ManiaPlanet",
+        "nadeo-game-platform": "PC_Windows",
+        "nadeo-game-version": "3.3.0",
+        "content-type": f'multipart/form-data; boundary="{boundary}"',
+        "content-length": str(len(content))
+    }
+    print(f"DEV headers: {headers}")
+    if len(token) > 0:
+        headers["Authorization"] = f"nadeo_v1 t={token}"
+    await await_nadeo_services_initialized()
+    async with get_core_session() as session:
+        session.headers.update(headers)
+        # return None
+        async with session.post(url, data=content) as resp:
+            if not resp.ok:
+                logging.warn(f"Error uploading map {map_uid}; {resp.status}, {await resp.content.read()}")
+                # if resp.status == 504: # timeout
+                #     await asyncio.sleep(1.0)
+                #     return await join_club_room(activityId)
+            else:
+                data: dict = await resp.json()
+                logging.warn(f"map upload response: {data}")
+                return data
+
+
+# 0a2d1bc0-4aaa-4374-b2db-3d561bdab1c9
+# UxvNHnVgILyFAU0wAdpu0uBuszc
+# curl -H 'Authorization: nadeo_v1 t=' 'https://live-services.trackmania.nadeo.live/api/token/club/46587/activity?length=100&offset=0'

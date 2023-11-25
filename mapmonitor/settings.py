@@ -44,6 +44,8 @@ CACHE_5_MIN = 300
 # cache icons for 10 years
 CACHE_ICONS_TTL = 86400 * 365 * 10
 
+# cache 8 hours
+CACHE_8HRS_TTL = 3600 * 8
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.1/howto/deployment/checklist/
