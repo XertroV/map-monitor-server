@@ -103,6 +103,8 @@ async def update_tmx_map(j: dict):
     if _map is None:
         await tmp_map.asave()
     if _map is not None:
+        if not j.get('VehicleName', None):
+            j['VehicleName'] = "!Unknown!"
         TmxMap.RemoveKeysFromTMX(j)
         await TmxMap.objects.filter(TrackID=tid).aupdate(**j)
 
