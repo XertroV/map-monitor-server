@@ -701,7 +701,7 @@ def finish_icon_img_request(im: Image):
 
 def lm_conversion_req(request: HttpRequest):
     if (request.method != "POST"): return HttpResponseNotAllowed(['POST'])
-    if len(request.body) > 1024**2 * 6: return HttpResponseBadRequest("LM zip too big, max 4mb after b64 encoding")
+    if len(request.body) > (1024**2) * 7: return HttpResponseBadRequest(f"LM zip too big, max 7 MB after b64 encoding (was {len(request.body) / (1024**2)} MB)")
     zip_bytes = BytesIO(base64.decodebytes(request.body))
     zip_bytes.seek(0)
     output = BytesIO()
