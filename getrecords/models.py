@@ -59,7 +59,7 @@ class CotdChallenge(models.Model):
 
 class CotdChallengeRanking(models.Model):
     '''Replaces CotdQualiTimes; one row per entry'''
-    challenge = models.ForeignKey(CotdChallenge, on_delete=models.DO_NOTHING)
+    challenge = models.ForeignKey(CotdChallenge, on_delete=models.DO_NOTHING, db_index=True)
     req_timestamp: int = models.IntegerField('request timestamp', db_index=True)
     score: int = models.IntegerField('score', db_index=True)
     rank: int = models.IntegerField('rank', db_index=True)
@@ -67,6 +67,9 @@ class CotdChallengeRanking(models.Model):
     class Meta:
         ordering = ["-req_timestamp", "rank"]
         unique_together = [["req_timestamp", "rank", "challenge"]]
+        index_together = [
+            ["challenge", "req_timestamp"],
+        ]
 
 
 LONG_MAP_SECS = 315
