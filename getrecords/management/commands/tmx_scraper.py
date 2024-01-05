@@ -449,7 +449,7 @@ async def gen_recently_beaten_from_query(q: 'BaseManager[TmxMapAT]'):
         if uid in nbPlayersMap:
             nbPlayers = nbPlayersMap[uid]
         else:
-            nbPlayers = (await refresh_nb_players_inner(uid, 86400)).nb_players
+            nbPlayers = (await refresh_nb_players_inner(uid, 86400))[0].nb_players
         track.append(nbPlayers)
     return tracks
 

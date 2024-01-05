@@ -39,9 +39,11 @@ from .view_logic import CURRENT_COTD_KEY, NB_PLAYERS_CACHE_SECONDS, NB_PLAYERS_M
 def json_resp(m: Model):
     return JsonResponse(model_to_dict(m))
 
-def json_resp_mtp(m: MapTotalPlayers):
+def json_resp_mtp(m: MapTotalPlayers, refresh_soon: bool):
     resp = model_to_dict(m)
     resp['refresh_in'] = NB_PLAYERS_CACHE_SECONDS # - (time.time() - m.updated_ts)
+    if refresh_soon:
+        resp['refresh_in'] = CACHE_COTD_TTL
     if (m.nb_players > 10000):
         resp['refresh_in'] = NB_PLAYERS_MAX_CACHE_SECONDS
     # print(f"Response: {json.dumps(resp)}")
@@ -338,7 +340,7 @@ def get_nb_players(request, map_uid):
 @cache_page(CACHE_COTD_TTL)
 def refresh_nb_players(request, map_uid, user=None):
     if request.method != "GET": return HttpResponseNotAllowed(['GET'])
-    return json_resp_mtp(run_async(refresh_nb_players_inner(map_uid)))
+    return json_resp_mtp(*run_async(refresh_nb_players_inner(map_uid)))
     # mtps = MapTotalPlayers.objects.filter(uid=map_uid)
     # last_known = 0
     # mtp = None

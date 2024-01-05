@@ -15,7 +15,7 @@ NB_PLAYERS_MAX_CACHE_SECONDS = 8 * 60 * 60
 # 10 sec
 QUALI_TIMES_CACHE_SECONDS = 10
 
-async def refresh_nb_players_inner(map_uid: str, updated_ago_min_secs=0) -> MapTotalPlayers:
+async def refresh_nb_players_inner(map_uid: str, updated_ago_min_secs=0) -> tuple[MapTotalPlayers, bool]:
     mtps = MapTotalPlayers.objects.filter(uid=map_uid)
     last_known = 0
     mtp = None
@@ -26,10 +26,10 @@ async def refresh_nb_players_inner(map_uid: str, updated_ago_min_secs=0) -> MapT
         in_prog = mtp.last_update_started_ts > mtp.updated_ts and (time.time() - mtp.last_update_started_ts < 60)
         # check for explict only-update-in-some-cases flag
         if (delta < updated_ago_min_secs):
-            return mtp
+            return (mtp, False)
         # if it's been less than 5 minutes, or an update is in prog, return cached
         if not LOCAL_DEV_MODE and (in_prog or delta < NB_PLAYERS_CACHE_SECONDS):
-            return mtp
+            return (mtp, True)
     else:
         mtp = MapTotalPlayers(uid=map_uid)
     mtp.last_update_started_ts = time.time()
@@ -44,7 +44,7 @@ async def refresh_nb_players_inner(map_uid: str, updated_ago_min_secs=0) -> MapT
         mtp.last_highest_score = last_player['score']
     mtp.updated_ts = time.time()
     await mtp.asave()
-    return mtp
+    return (mtp, False)
 
 
 def get_unbeaten_ats_query():
