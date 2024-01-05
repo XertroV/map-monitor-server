@@ -72,8 +72,11 @@ async def run_tmx_scraper(state: TmxMapScrapeState, update_state: TmxMapScrapeSt
             await fix_at_beaten_first_nb()
             # await fix_tmx_records()
             if LOCAL_DEV_MODE:
+                logging.info(f"Local dev: cache_recently_beaten_ats")
                 await cache_recently_beaten_ats()
+                logging.info(f"Local dev: cache_map_uids")
                 await cache_map_uids()
+                logging.info(f"Local dev: scrape_unbeaten_ats")
                 await scrape_unbeaten_ats()
             latest_map = await get_latest_map_id()
             if latest_map > state.LastScraped:
