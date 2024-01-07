@@ -24,10 +24,10 @@ async def refresh_nb_players_inner(map_uid: str, updated_ago_min_secs=0) -> tupl
         mtp = await mtps.afirst()
         last_known = mtp.nb_players
         delta = time.time() - mtp.updated_ts
-        in_prog = mtp.last_update_started_ts > mtp.updated_ts and (time.time() - mtp.last_update_started_ts < 60)
+        in_prog = mtp.last_update_started_ts >= mtp.updated_ts # and (time.time() - mtp.last_update_started_ts < 60)
         # check for explict only-update-in-some-cases flag, used by AT/TMX scraper
         if (delta < updated_ago_min_secs):
-            return (mtp, False)
+            return (mtp, in_prog)
         # if it's been less than 5 minutes, or an update is in prog, return cached, refresh soon if in progress
         if not LOCAL_DEV_MODE and (in_prog or delta < NB_PLAYERS_CACHE_SECONDS):
             return (mtp, in_prog)
