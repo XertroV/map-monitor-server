@@ -44,7 +44,7 @@ def json_resp_mtp(m: MapTotalPlayers, refresh_soon: bool):
     resp['refresh_in'] = NB_PLAYERS_CACHE_SECONDS # - (time.time() - m.updated_ts)
     if refresh_soon:
         resp['refresh_in'] = CACHE_COTD_TTL
-    if (m.nb_players > 10000):
+    if (m.nb_players > 100000):
         resp['refresh_in'] = NB_PLAYERS_MAX_CACHE_SECONDS
     # print(f"Response: {json.dumps(resp)}")
     return JsonResponse(resp)
