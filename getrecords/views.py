@@ -490,6 +490,17 @@ def tmx_etags_match(m: TmxMap, etags: list[int]) -> bool:
         if t in tags: return False
     return True
 
+def tmx_tags_match(m: TmxMap, incl_tags: list[int], require_all_tags: bool) -> bool:
+    tags = list(map(int, m.Tags.split(',')))
+    if require_all_tags:
+        for t in incl_tags:
+            if t not in tags: return False
+        return True
+    for t in incl_tags:
+        if t in tags: return True
+    return False
+
+
 def tmx_map_downloadable(m: TmxMap) -> bool:
     return m.Downloadable and not (m.Unlisted or m.Unreleased)
 
@@ -513,6 +524,11 @@ def mapsearch2_inner(request):
         is_random = request.GET.get('random', '0') == '1'
         if not is_random:
             return HttpResponseBadRequest(f"Only random=1 supported")
+        tags = request.GET.get('tags', '')
+        include_tags: list[int] = []
+        if len(tags) > 0:
+            include_tags = list(map(int, request.GET.get('tags', '').split(",")))
+        require_all_tags = request.GET.get('tagsinc', '0') == '1'
         etags = request.GET.get('etags', '')
         exclude_tags: list[int] = []
         if len(etags) > 0:
@@ -539,6 +555,7 @@ def mapsearch2_inner(request):
             or not tmx_vehicle_match(track, vehicles) \
             or not tmx_mtype_match(track, mtype) \
             or not tmx_etags_match(track, exclude_tags) \
+            or not tmx_tags_match(track, include_tags, require_all_tags) \
             or not tmx_map_downloadable(track) \
             or not tmx_map_okay_rmc(track) \
             or not tmx_map_still_public(track):
