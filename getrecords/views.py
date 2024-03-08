@@ -477,7 +477,8 @@ def tmx_len_match(m: TmxMap, op: LengthOp, l_enum: int) -> bool:
 
 def tmx_vehicle_match(m: TmxMap, vehicle) -> bool:
     if vehicle == 0: return True
-    if vehicle == 1: return m.VehicleName == "CarSport"
+    if vehicle == 1: return m.VehicleName == "CarSport" or m.VehicleName == "CarSnow" or m.VehicleName == "CarRally"
+    print(f"Unknown vehicle: {vehicle} / {m.VehicleName}")
     return True
 
 def tmx_mtype_match(m: TmxMap, mtype) -> bool:
