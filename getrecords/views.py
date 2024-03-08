@@ -491,6 +491,7 @@ def tmx_etags_match(m: TmxMap, etags: list[int]) -> bool:
     return True
 
 def tmx_tags_match(m: TmxMap, incl_tags: list[int], require_all_tags: bool) -> bool:
+    if len(incl_tags) == 0: return True
     tags = list(map(int, m.Tags.split(',')))
     if require_all_tags:
         for t in incl_tags:
