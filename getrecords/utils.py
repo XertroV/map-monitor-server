@@ -28,6 +28,7 @@ def chunk(iter: Iterable, n: int):
         yield iter[i:(i+n)]
 
 
+# also checks file converted like .upper-environ-format => UPPER_ENVIRON_FORMAT_KEY (where the config file is key value format)
 def read_config_file(file: str, keys: list[str]):
     no_dot = file[1:] if file.startswith('.') else file
     if check_environ_for_config(no_dot, keys):

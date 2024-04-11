@@ -22,6 +22,7 @@ LOCAL_DEV_MODE = DEBUG
 # ubi_account_info = read_config_file('.ubisoft-acct', ['email', 'password'])
 dedi_server_acct_info = read_config_file('.dedi-server-acct', ['user', 'password'])
 
+TMX_MAPPACK_UNBEATEN_ATS_APIKEY = read_config_file('.tmx-mappack-unbeaten-ats', ['apikey'])['apikey']
 
 UBI_SESSIONS_URL = "https://public-ubiservices.ubi.com/v3/profiles/sessions"
 NADEO_AUDIENCE_REG_URL = "https://prod.trackmania.core.nadeo.online/v2/authentication/token/ubiservices"

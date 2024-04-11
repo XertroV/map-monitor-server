@@ -544,26 +544,36 @@ def mapsearch2_inner(request):
 
     state = get_scrape_state()
 
+    batch_size = 10
     count = 0
     # now the random part
     while count < 1000:
-        count += 1
-        tid = random.randint(1, state.LastScraped + 1)
-        track = TmxMap.objects.filter(pk=tid).first()
-        if track is None:
-            logging.info(f"No track: {tid}")
-            continue
-        if not tmx_len_match(track, length_op, length) \
-            or not tmx_vehicle_match(track, vehicles) \
-            or not tmx_mtype_match(track, mtype) \
-            or not tmx_etags_match(track, exclude_tags) \
-            or not tmx_tags_match(track, include_tags, require_all_tags) \
-            or not tmx_map_downloadable(track) \
-            or not tmx_map_okay_rmc(track) \
-            or not tmx_map_still_public(track):
-            logging.info(f"Track did not match: {tid}")
-            continue
-        return JsonResponse({'results': [model_to_dict(track)], 'totalItemCount': 1})
+        count += batch_size
+        tids = list(random.randint(1, state.LastScraped + 1) for _ in range(batch_size))
+        tracks: list[TmxMap] = TmxMap.objects.filter(TrackID__in=tids).all()
+        print(f"Searched: {tids}")
+        print(f"search got tracks: {len(tracks)} / {[t.TrackID for t in tracks]}")
+        for tid in tids:
+            track: TmxMap | None = None
+            for _track in tracks:
+                if _track.TrackID == tid:
+                    track = _track
+                    break
+            if track is None:
+                logging.info(f"No track {tid}")
+                continue
+            if not tmx_len_match(track, length_op, length) \
+                or not tmx_vehicle_match(track, vehicles) \
+                or not tmx_mtype_match(track, mtype) \
+                or not tmx_etags_match(track, exclude_tags) \
+                or not tmx_tags_match(track, include_tags, require_all_tags) \
+                or not tmx_map_downloadable(track) \
+                or not tmx_map_okay_rmc(track) \
+                or not tmx_map_still_public(track):
+                logging.info(f"Track did not match: {track.TrackID}")
+                continue
+            logging.info(f"Found track: {track.TrackID}")
+            return JsonResponse({'results': [model_to_dict(track)], 'totalItemCount': 1})
         # track.Tags
     return HttpResponseNotFound("Searched 1k maps but did not find a map")
 
@@ -589,6 +599,12 @@ def map_dl(request, mapid: int):
 def tmx_api_tags_gettags(request):
     return JsonResponse(get_tmx_tags_cached(), safe=False)
     # return HttpResponsePermanentRedirect(f"https://trackmania.exchange/api/tags/gettags")
+
+def api_tmx_get_map(req, trackid: int):
+    track = TmxMap.objects.filter(TrackID=trackid).first()
+    if track is None:
+        return HttpResponseNotFound(f"Could not find track with ID: {trackid}!")
+    return JsonResponse(model_to_dict(track))
 
 def tmx_maps_get_map_info_multi(request, mapids: str):
     try:
@@ -634,6 +650,21 @@ def tmx_prev_map(request, map_id: int):
 
 def tmx_count_at_map(request, map_id: int):
     return JsonResponse(dict(maps_so_far=TmxMap.objects.filter(TrackID__lt=map_id, MapType__contains="TM_Race").count()))
+
+
+def get_unbeaten_at_details(request, trackid:int):
+    track = TmxMap.objects.filter(TrackID=trackid).first()
+    if track is None:
+        return HttpResponseNotFound(f"Could not find track with ID: {trackid}!")
+    map_at = TmxMapAT.objects.filter(Track_id=track.pk).first()
+    if map_at is None:
+        return HttpResponseNotFound(f"Could not find AT for track with ID: {trackid}!")
+    print(f"Found AT: {map_at}")
+    print(f"Found AT: {map_at.Track.TrackID}")
+    print(f"Found AT: {map_at.Track.pk}")
+    ret = model_to_dict(map_at)
+    ret['Track'] = model_to_dict(track)
+    return JsonResponse(ret)
 
 
 def unbeaten_ats(request):

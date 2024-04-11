@@ -81,16 +81,54 @@ async def get_tmx_map(tid: int, timeout=1.5):
 
 
 # https://api2.mania.exchange/Method/Index/15
-async def get_tmx_map_pack_maps(mpid: int):
+async def get_tmx_map_pack_maps(mpid: int, secret: str | None = None):
     async with get_session() as session:
         try:
-            async with session.get(f"https://trackmania.exchange/api/mappack/get_mappack_tracks/{mpid}") as resp:
+            sec_str = f"?secret={secret}" if secret else ""
+            async with session.get(f"https://trackmania.exchange/api/mappack/get_mappack_tracks/{mpid}{sec_str}") as resp:
                 if resp.status == 200:
                     return await resp.json()
                 else:
                     raise Exception(f"Could not get mappack maps for {mpid}: {resp.status} code.")
         except asyncio.TimeoutError as e:
             raise Exception(f"TMX timeout for get mappack maps {mpid}")
+
+CHANGE_MAP_STATUS_IN_MAPPACK = "https://trackmania.exchange/api/mappack/manage/{id}/map_status/{status}/{midstring}?secret={secret}"
+async def set_map_status_in_map_pack(mappack_id: int, status: int, track_id_or_uid: str, secret: str):
+    ''' status: 0 accepted, 1 pending, rest see: <https://api2.mania.exchange/Enum/Index/11> '''
+    async with get_session() as session:
+        try:
+            async with session.post(CHANGE_MAP_STATUS_IN_MAPPACK.format(id=mappack_id, status=status, midstring=track_id_or_uid, secret=secret)) as resp:
+                if resp.status == 200:
+                    return await resp.json()
+                else:
+                    raise Exception(f"Could not change map status in mappack {mappack_id}: {resp.status} code.")
+        except asyncio.TimeoutError as e:
+            raise Exception(f"TMX timeout for change map status in mappack {mappack_id}")
+
+
+async def add_map_to_tmx_map_pack(mpid: int, tid: int, api_key: str):
+    async with get_session() as session:
+        try:
+            async with session.post(f"https://trackmania.exchange/api/mappack/manage/{mpid}/add_map/{tid}?secret={api_key}") as resp:
+                if resp.status == 200:
+                    return await resp.json()
+                else:
+                    raise Exception(f"Could not add map to mappack {mpid}: {resp.status} code.")
+        except asyncio.TimeoutError as e:
+            raise Exception(f"TMX timeout for add map to mappack {mpid}")
+
+
+async def remove_map_from_tmx_map_pack(mpid: int, tid: int, api_key: str):
+    async with get_session() as session:
+        try:
+            async with session.delete(f"https://trackmania.exchange/api/mappack/manage/{mpid}/remove_map/{tid}?secret={api_key}") as resp:
+                if resp.status == 200:
+                    return await resp.json()
+                else:
+                    raise Exception(f"Could not remove map from mappack {mpid}: {resp.status} code.")
+        except asyncio.TimeoutError as e:
+            raise Exception(f"TMX timeout for remove map from mappack {mpid}")
 
 
 async def update_tmx_map(j: dict):
@@ -112,15 +150,15 @@ async def update_tmx_map(j: dict):
 
 def tmx_map_still_public(m: TmxMap) -> bool:
     if m.Unlisted or m.Unreleased: return False
-    try:
-        new_map: dict = run_async(get_tmx_map(m.TrackID))
-        # none is returned if status isn't 200, e.g., 404
-        if new_map is None: return False
-        if new_map.get('Unlisted', False) or new_map.get('Unreleased', False):
-            m.Unlisted = new_map.get('Unlisted', False)
-            m.Unreleased = new_map.get('Unreleased', False)
-            m.save()
-            return False
-    except Exception as e:
-        logging.warn(f"Exception checking if tmx map still public: {e}")
+    # try:
+    #     new_map: dict = run_async(get_tmx_map(m.TrackID))
+    #     # none is returned if status isn't 200, e.g., 404
+    #     if new_map is None: return False
+    #     if new_map.get('Unlisted', False) or new_map.get('Unreleased', False):
+    #         m.Unlisted = new_map.get('Unlisted', False)
+    #         m.Unreleased = new_map.get('Unreleased', False)
+    #         m.save()
+    #         return False
+    # except Exception as e:
+    #     logging.warn(f"Exception checking if tmx map still public: {e}")
     return True
