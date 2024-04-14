@@ -20,8 +20,9 @@ from getrecords.view_logic import CURRENT_COTD_KEY, RECENTLY_BEATEN_ATS_CV_NAME,
 # AT_CHECK_BATCH_SIZE = 360
 AT_CHECK_BATCH_SIZE = 200
 
-# TMX_MAPPACKID_UNBEATEN_ATS = 3306
-TMX_MAPPACKID_UNBEATEN_ATS_S2 = 4412
+TMX_MAPPACKID_UNBEATEN_ATS = 3306
+if LOCAL_DEV_MODE:
+    TMX_MAPPACKID_UNBEATEN_ATS_S2 = 4412
 
 # if LOCAL_DEV_MODE:
 #     AT_CHECK_BATCH_SIZE = 5
@@ -91,7 +92,7 @@ async def run_tmx_scraper(state: TmxMapScrapeState, update_state: TmxMapScrapeSt
             await cache_unbeaten_ats()
             await cache_recently_beaten_ats()
             await cache_map_uids()
-            # await update_unbeaten_ats_map_pack_s2()
+            await update_unbeaten_ats_map_pack_s2()
             sduration = max(0, loop_seconds - (time.time() - start))
             logging.info(f"txm scraper sleeping for {sduration}s")
             await asyncio.sleep(sduration)

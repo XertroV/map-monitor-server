@@ -659,9 +659,6 @@ def get_unbeaten_at_details(request, trackid:int):
     map_at = TmxMapAT.objects.filter(Track_id=track.pk).first()
     if map_at is None:
         return HttpResponseNotFound(f"Could not find AT for track with ID: {trackid}!")
-    print(f"Found AT: {map_at}")
-    print(f"Found AT: {map_at.Track.TrackID}")
-    print(f"Found AT: {map_at.Track.pk}")
     ret = model_to_dict(map_at)
     ret['Track'] = model_to_dict(track)
     return JsonResponse(ret)
