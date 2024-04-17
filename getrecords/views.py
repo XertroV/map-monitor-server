@@ -553,7 +553,7 @@ def mapsearch2_inner(request):
         count += batch_size
         rand_tids = list(random.randint(1, state.LastScraped + 1) for _ in range(batch_size))
         q_dict = dict(TrackID__in=rand_tids)
-        if author is not None: q_dict = dict(Username=author)
+        if author is not None: q_dict = dict(Username__iexact=author)
         tracks: list[TmxMap] = TmxMap.objects.filter(**q_dict).all()
         resp_tids: list[int] = [t.TrackID for t in tracks]
         if author is not None:
