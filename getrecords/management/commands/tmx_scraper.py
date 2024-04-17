@@ -27,6 +27,8 @@ if LOCAL_DEV_MODE:
 # if LOCAL_DEV_MODE:
 #     AT_CHECK_BATCH_SIZE = 5
 
+RUN_UPDATE_UNBEATEN_MAP_PACK_S2 = not LOCAL_DEV_MODE
+
 
 class Command(BaseCommand):
     help = "Run the tmx scraper"
@@ -83,7 +85,7 @@ async def run_tmx_scraper(state: TmxMapScrapeState, update_state: TmxMapScrapeSt
                 logging.info(f"Local dev: scrape_unbeaten_ats")
                 await scrape_unbeaten_ats()
                 await cache_unbeaten_ats()
-                await update_unbeaten_ats_map_pack_s2()
+                # await update_unbeaten_ats_map_pack_s2()
             latest_map = await get_latest_map_id()
             if latest_map > state.LastScraped:
                 await scrape_range(state, latest_map)
@@ -378,6 +380,9 @@ async def fix_at_beaten_first_nb():
 
 
 async def update_unbeaten_ats_map_pack_s2():
+    if not RUN_UPDATE_UNBEATEN_MAP_PACK_S2:
+        logging.warn(f"Skipping updating unbeaten map pack!")
+        return
     #TMX_MAPPACK_UNBEATEN_ATS_APIKEY
     unbeaten_ats = await CachedValue.objects.filter(name=UNBEATEN_ATS_CV_NAME).afirst()
     s2_tracks = list(t for t in json.loads(unbeaten_ats.value)['tracks'] if t[0] >= 100_000)
