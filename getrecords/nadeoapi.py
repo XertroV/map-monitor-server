@@ -21,6 +21,7 @@ LOCAL_DEV_MODE = DEBUG
 
 # ubi_account_info = read_config_file('.ubisoft-acct', ['email', 'password'])
 dedi_server_acct_info = read_config_file('.dedi-server-acct', ['user', 'password'])
+# print(dedi_server_acct_info)
 
 TMX_MAPPACK_UNBEATEN_ATS_APIKEY = read_config_file('.tmx-mappack-unbeaten-ats', ['apikey'])['apikey']
 
@@ -118,11 +119,12 @@ async def reacquire_token(for_name: str, force=False) -> NadeoToken:
     if force or check_refresh_after(tmpNadeoToken):
         tmpNadeoToken = await get_token_for_audience(for_name)
         logging.warn(f"Got {for_name} token: {tmpNadeoToken is not None}")
-        await AuthToken.objects.aupdate_or_create(
-            token_for=for_name,
-            defaults=dict(access_token=tmpNadeoToken.accessToken, refresh_token=tmpNadeoToken.refreshToken,
-                          expiry_ts=tmpNadeoToken.accessTokenJson.get('exp'), refresh_after=tmpNadeoToken.accessTokenJson.get('rat'))
-        )
+        if tmpNadeoToken is not None:
+            await AuthToken.objects.aupdate_or_create(
+                token_for=for_name,
+                defaults=dict(access_token=tmpNadeoToken.accessToken, refresh_token=tmpNadeoToken.refreshToken,
+                            expiry_ts=tmpNadeoToken.accessTokenJson.get('exp'), refresh_after=tmpNadeoToken.accessTokenJson.get('rat'))
+            )
     return tmpNadeoToken
 
 

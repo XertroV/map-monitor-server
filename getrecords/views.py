@@ -3,6 +3,7 @@ import base64
 from datetime import timedelta
 import json
 import logging
+from random import shuffle
 import time
 from typing import Coroutine, Optional
 from PIL import Image
@@ -539,6 +540,7 @@ def mapsearch2_inner(request):
         length = int(request.GET.get('length', '0'))
         vehicles = int(request.GET.get('vehicles', '0'))
         mtype = request.GET.get('mtype', '')
+        author = request.GET.get('author', None)
     except Exception as e:
         return HttpResponseBadRequest(f"Exception processing query params: {e}")
 
@@ -549,11 +551,18 @@ def mapsearch2_inner(request):
     # now the random part
     while count < 1000:
         count += batch_size
-        tids = list(random.randint(1, state.LastScraped + 1) for _ in range(batch_size))
-        tracks: list[TmxMap] = TmxMap.objects.filter(TrackID__in=tids).all()
-        print(f"Searched: {tids}")
-        print(f"search got tracks: {len(tracks)} / {[t.TrackID for t in tracks]}")
-        for tid in tids:
+        rand_tids = list(random.randint(1, state.LastScraped + 1) for _ in range(batch_size))
+        q_dict = dict(TrackID__in=rand_tids)
+        if author is not None: q_dict = dict(Username__iexact=author)
+        tracks: list[TmxMap] = TmxMap.objects.filter(**q_dict).all()
+        resp_tids: list[int] = [t.TrackID for t in tracks]
+        if author is not None:
+            rand_tids = clone_and_shuffle(resp_tids)
+            if len(rand_tids) == 0:
+                return HttpResponseNotFound(f"No maps found for author: {author}")
+        print(f"Searched: {rand_tids}")
+        print(f"search got tracks: {len(tracks)} / {resp_tids}")
+        for tid in rand_tids:
             track: TmxMap | None = None
             for _track in tracks:
                 if _track.TrackID == tid:
@@ -577,6 +586,11 @@ def mapsearch2_inner(request):
         # track.Tags
     return HttpResponseNotFound("Searched 1k maps but did not find a map")
 
+
+def clone_and_shuffle(xs: list) -> list:
+    ret = [x for x in xs]
+    shuffle(ret)
+    return ret
 
 
 def map_dl(request, mapid: int):
