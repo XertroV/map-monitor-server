@@ -550,6 +550,7 @@ def mapsearch2_inner(request):
 
     batch_size = 10
     count = 0
+    last_track = None
     # now the random part
     while count < 1000:
         count += batch_size
@@ -573,6 +574,7 @@ def mapsearch2_inner(request):
             if track is None:
                 logging.info(f"No track {tid}")
                 continue
+            last_track = track
             if not tmx_len_match(track, length_op, length) \
                 or not tmx_vehicle_match(track, vehicles) \
                 or not tmx_mtype_match(track, mtype) \
@@ -586,6 +588,8 @@ def mapsearch2_inner(request):
             logging.info(f"Found track: {track.TrackID}")
             return JsonResponse({'results': [model_to_dict(track)], 'totalItemCount': 1})
         # track.Tags
+    if last_track is not None:
+        return JsonResponse({'results': [model_to_dict(last_track)], 'totalItemCount': 1})
     return HttpResponseNotFound("Searched 1k maps but did not find a map")
 
 
