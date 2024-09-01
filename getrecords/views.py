@@ -29,7 +29,7 @@ from getrecords.management.commands.tmx_scraper import get_scrape_state
 from getrecords.openplanet import ARCHIVIST_PLUGIN_ID, MAP_MONITOR_PLUGIN_ID, TokenResp, check_token, sha_256
 from getrecords.rmc_exclusions import EXCLUDE_FROM_RMC
 from getrecords.s3 import upload_ghost_to_s3
-from getrecords.tmx_maps import get_tmx_tags_cached, update_tmx_tags_cached
+from getrecords.tmx_maps import get_tmx_tags_cached, update_tmx_tag_lookup, update_tmx_tags_cached, tmx_tags_lookup
 from getrecords.utils import model_to_dict, run_async, sha_256_b_ts
 from mapmonitor.settings import CACHE_5_MIN, CACHE_8HRS_TTL, CACHE_COTD_TTL, CACHE_ICONS_TTL
 
@@ -667,6 +667,15 @@ def get_requests_query_tags(request):
     return list(map(int, s.split(',')))
 
 
+def tags_to_names(tags: list[int]) -> list[str]:
+    if len(tmx_tags_lookup) == 0:
+        update_tmx_tag_lookup()
+    ret = []
+    for t in tags:
+        ret.append(tmx_tags_lookup.get(t, f"Unk({t})"))
+    return ret
+
+
 def tmx_next_map(request, map_id: int):
     tags = get_requests_query_tags(request)
     next_maps = TmxMap.objects.filter(TrackID__gt=map_id, MapType__contains="TM_Race")
@@ -675,15 +684,15 @@ def tmx_next_map(request, map_id: int):
     next_maps = next_maps.order_by('TrackID')
 
     if len(tags) > 0:
-        for nm in next_maps:
-            map_tags = list(map(int, (nm.Tags or "").split(',')))
+        for next_map in next_maps:
+            map_tags = list(map(int, (next_map.Tags or "").split(',')))
             if any(t in map_tags for t in tags):
-                return JsonResponse(dict(next=nm.TrackID, next_uid=nm.TrackUID, tags=map_tags))
+                return JsonResponse(dict(next=next_map.TrackID, next_uid=next_map.TrackUID, tags=map_tags, tag_names=tags_to_names(map_tags), name=next_map.Name, author=next_map.Username))
     else:
         next_map = next_maps.first()
         map_tags = list(map(int, (next_map.Tags or "").split(',')))
         if next_map is not None:
-            return JsonResponse(dict(next=next_map.TrackID, next_uid=next_map.TrackUID, tags=map_tags))
+            return JsonResponse(dict(next=next_map.TrackID, next_uid=next_map.TrackUID, tags=map_tags, tag_names=tags_to_names(map_tags), name=next_map.Name, author=next_map.Username))
 
     return JsonResponse(dict(next=1))
 
