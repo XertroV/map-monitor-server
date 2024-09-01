@@ -489,14 +489,14 @@ def tmx_mtype_match(m: TmxMap, mtype) -> bool:
     return m.MapType == mtype
 
 def tmx_etags_match(m: TmxMap, etags: list[int]) -> bool:
-    tags = list(map(int, m.Tags.split(',')))
+    tags = list(map(int, (m.Tags or "").split(',')))
     for t in etags:
         if t in tags: return False
     return True
 
 def tmx_tags_match(m: TmxMap, incl_tags: list[int], require_all_tags: bool) -> bool:
     if len(incl_tags) == 0: return True
-    tags = list(map(int, m.Tags.split(',')))
+    tags = list(map(int, (m.Tags or "").split(',')))
     if require_all_tags:
         for t in incl_tags:
             if t not in tags: return False
