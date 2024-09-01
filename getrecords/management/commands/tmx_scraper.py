@@ -11,7 +11,7 @@ from django.core.management.base import BaseCommand, CommandError
 from getrecords.http import get_session
 from getrecords.models import CachedValue, MapTotalPlayers, TmxMap, TmxMapAT, TmxMapScrapeState
 from getrecords.nadeoapi import LOCAL_DEV_MODE, TMX_MAPPACK_UNBEATEN_ATS_APIKEY, get_map_records, run_nadeo_services_auth
-from getrecords.tmx_maps import tmx_date_to_ts
+from getrecords.tmx_maps import tmx_date_to_ts, update_tmx_tags_cached
 from getrecords.unbeaten_ats import TMX_MAPPACKID_UNBEATABLE_ATS, TMXIDS_UNBEATABLE_ATS
 from getrecords.utils import chunk, model_to_dict
 from getrecords.view_logic import CURRENT_COTD_KEY, RECENTLY_BEATEN_ATS_CV_NAME, TRACK_UIDS_CV_NAME, UNBEATEN_ATS_CV_NAME, add_map_to_tmx_map_pack, get_recently_beaten_ats_query, get_tmx_map, get_tmx_map_pack_maps, get_unbeaten_ats_query, refresh_nb_players_inner, remove_map_from_tmx_map_pack, set_map_status_in_map_pack, update_tmx_map
@@ -95,6 +95,7 @@ async def run_tmx_scraper(state: TmxMapScrapeState, update_state: TmxMapScrapeSt
             await cache_recently_beaten_ats()
             await cache_map_uids()
             await update_unbeaten_ats_map_pack_s2()
+            await update_tmx_tags_cached()
             sduration = max(0, loop_seconds - (time.time() - start))
             logging.info(f"txm scraper sleeping for {sduration}s")
             await asyncio.sleep(sduration)

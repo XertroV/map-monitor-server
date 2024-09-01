@@ -1,8 +1,10 @@
 import asyncio
 import base64
 from datetime import timedelta
+from functools import reduce
 import json
 import logging
+import operator
 from random import shuffle
 import time
 from typing import Coroutine, Optional
@@ -17,7 +19,7 @@ from django.db import IntegrityError
 from django.shortcuts import render, get_object_or_404
 from django.http import HttpResponseRedirect, JsonResponse, HttpResponseNotAllowed, HttpRequest, HttpResponseForbidden, HttpResponse, HttpResponseNotFound, HttpResponseBadRequest, HttpResponsePermanentRedirect, FileResponse
 from django.core import serializers
-from django.db.models import Model
+from django.db.models import Model, Q
 from django.utils import timezone
 from django.db import transaction
 from django.views.decorators.cache import cache_page
@@ -27,7 +29,7 @@ from getrecords.management.commands.tmx_scraper import get_scrape_state
 from getrecords.openplanet import ARCHIVIST_PLUGIN_ID, MAP_MONITOR_PLUGIN_ID, TokenResp, check_token, sha_256
 from getrecords.rmc_exclusions import EXCLUDE_FROM_RMC
 from getrecords.s3 import upload_ghost_to_s3
-from getrecords.tmx_maps import get_tmx_tags_cached
+from getrecords.tmx_maps import get_tmx_tags_cached, update_tmx_tags_cached
 from getrecords.utils import model_to_dict, run_async, sha_256_b_ts
 from mapmonitor.settings import CACHE_5_MIN, CACHE_8HRS_TTL, CACHE_COTD_TTL, CACHE_ICONS_TTL
 
@@ -609,16 +611,25 @@ def map_dl(request, mapid: int):
     return HttpResponseNotFound(f"Could not find track with ID: {mapid}! (Unknown ID or missing UID or not uploaded to Nadeo)")
 
 
-
+@cache_page(CACHE_8HRS_TTL)
 def tmx_api_tags_gettags(request):
     return JsonResponse(get_tmx_tags_cached(), safe=False)
     # return HttpResponsePermanentRedirect(f"https://trackmania.exchange/api/tags/gettags")
+
+
+@cache_page(CACHE_8HRS_TTL)
+def tmx_api_tags_gettags_refresh(request):
+    run_async(update_tmx_tags_cached())
+    return JsonResponse(get_tmx_tags_cached(), safe=False)
+    # return HttpResponsePermanentRedirect(f"https://trackmania.exchange/api/tags/gettags")
+
 
 def api_tmx_get_map(req, trackid: int):
     track = TmxMap.objects.filter(TrackID=trackid).first()
     if track is None:
         return HttpResponseNotFound(f"Could not find track with ID: {trackid}!")
     return JsonResponse(model_to_dict(track))
+
 
 def tmx_maps_get_map_info_multi(request, mapids: str):
     try:
@@ -649,12 +660,32 @@ def tmx_uid_to_tid_map(request):
     return JsonResponse(ret, safe=False)
 
 
+def get_requests_query_tags(request):
+    s = request.GET.get('tags', '')
+    if len(s) == 0:
+        return []
+    return list(map(int, s.split(',')))
+
 
 def tmx_next_map(request, map_id: int):
-    next_map = TmxMap.objects.filter(TrackID__gt=map_id, MapType__contains="TM_Race").order_by('TrackID').first()
-    if next_map is None:
-        return JsonResponse(dict(next=1))
-    return JsonResponse(dict(next=next_map.TrackID, next_uid=next_map.TrackUID))
+    tags = get_requests_query_tags(request)
+    next_maps = TmxMap.objects.filter(TrackID__gt=map_id, MapType__contains="TM_Race")
+    if len(tags) > 0:
+        next_maps = next_maps.filter(reduce(operator.or_, (Q(Tags__contains=f"{t}") for t in tags)))
+    next_maps = next_maps.order_by('TrackID')
+
+    if len(tags) > 0:
+        for nm in next_maps:
+            map_tags = list(map(int, (nm.Tags or "").split(',')))
+            if any(t in map_tags for t in tags):
+                return JsonResponse(dict(next=nm.TrackID, next_uid=nm.TrackUID, tags=map_tags))
+    else:
+        next_map = next_maps.first()
+        map_tags = list(map(int, (next_map.Tags or "").split(',')))
+        if next_map is not None:
+            return JsonResponse(dict(next=next_map.TrackID, next_uid=next_map.TrackUID, tags=map_tags))
+
+    return JsonResponse(dict(next=1))
 
 def tmx_prev_map(request, map_id: int):
     prev_map = TmxMap.objects.filter(TrackID__lt=map_id, MapType__contains="TM_Race").order_by('-TrackID').first()

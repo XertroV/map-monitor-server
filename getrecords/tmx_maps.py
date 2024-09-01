@@ -72,12 +72,14 @@ async def update_tmx_tags_cached():
     global tmx_tags_cached
     try:
         async with get_session() as session:
-            async with await session.get("https://trackxmania.exchange/api/tags/gettags") as resp:
+            logging.info(f"Updating tags cache [https://trackmania.exchange/api/tags/gettags]")
+            async with await session.get("https://trackmania.exchange/api/tags/gettags") as resp:
                 if resp.ok:
                     data = await resp.json()
                     if data[0]["ID"] == 1:
                         tmx_tags_cached = data
                         print(f"Updated tags cache")
+                        return data
     except Exception as e:
         logging.warn(f"Failed to cache TMX tags: {e}")
 
