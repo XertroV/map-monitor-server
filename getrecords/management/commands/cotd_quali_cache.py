@@ -124,7 +124,7 @@ async def run_cache_during_cotd_quali(cid, uid, start_date, end_date):
     except Exception as e:
         logging.warn(f"Exception updating challenge name and leaderboardId: {e}")
 
-    main_loop_period = 10 # seconds
+    main_loop_period = 20 # seconds
 
     while time.time() < (end_date + 30):
         loop_start = time.time()
@@ -136,7 +136,7 @@ async def run_cache_during_cotd_quali(cid, uid, start_date, end_date):
         # report and sleep
         loop_end = time.time()
         loop_duration = loop_end - loop_start
-        sleep_for = main_loop_period - loop_duration
+        sleep_for = max(main_loop_period - loop_duration, 10)
         logging.info(f"COTD results cache runner loop duration: {loop_duration} s")
         if sleep_for > 0:
             logging.info(f"COTD results cache runner sleeping for {sleep_for} s")
