@@ -285,6 +285,7 @@ async def scrape_unbeaten_ats():
                             logging.warn(f"Exception refreshing nb players from tmx scraper for {mapAT}: {e}")
                 if LOCAL_DEV_MODE:
                     logging.info(f"Checked AT ({track['AuthorTime']} ms) for {track['TrackID']}: Beaten: {mapAT.AuthorTimeBeaten}, WR: {mapAT.WR}")#\n{res}")
+            logging.info(f"Checked AT ({track['AuthorTime']} ms) for {track['TrackID']}: Beaten: {mapAT.AuthorTimeBeaten}, WR: {mapAT.WR}")
             await mapAT.asave()
             count += 1
             if count >= AT_CHECK_BATCH_SIZE:
