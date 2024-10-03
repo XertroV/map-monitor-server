@@ -44,7 +44,12 @@ async def refresh_nb_players_inner(map_uid: str, updated_ago_min_secs=-1) -> tup
         mtp.nb_players = last_player['position']
         mtp.last_highest_score = last_player['score']
     mtp.updated_ts = time.time()
-    await mtp.asave()
+    try:
+        await mtp.asave()
+    except Exception as e:
+        logging.error(f"Error saving map total players: {e}")
+        logging.error(f"Map total players: {mtp}")
+        raise e
     return (mtp, False)
 
 

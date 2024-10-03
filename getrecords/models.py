@@ -67,9 +67,9 @@ class CotdChallengeRanking(models.Model):
     class Meta:
         ordering = ["-req_timestamp", "rank"]
         unique_together = [["req_timestamp", "rank", "challenge"]]
-        index_together = [
-            ["challenge", "req_timestamp"],
-        ]
+        # index_together = [
+        #     ["challenge", "req_timestamp"],
+        # ]
 
 
 LONG_MAP_SECS = 315
@@ -279,7 +279,7 @@ class UserStats(models.Model):
     partial_runs: int = models.IntegerField(default=0, db_index=True)
     segmented_runs: int = models.IntegerField(default=0, db_index=True)
     unique_maps: int = models.IntegerField(default=0, db_index=True)
-    total_time: int = models.IntegerField(default=0, db_index=True)
+    total_time: int = models.IntegerField(default=0)
 
 
 
