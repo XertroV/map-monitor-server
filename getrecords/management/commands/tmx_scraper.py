@@ -429,7 +429,7 @@ async def update_unbeaten_ats_map_pack_s2():
             if r['Message'] != "Map successfully removed.":
                 logging.warn(f"Failed to remove map from unbeaten map pack {pack_id} - {i+1} / {nb_to_remove} : {r}")
             else:
-                logging.info(f"Removed map from unbeaten map pack {pack_id}: {t['TrackID']}")
+                logging.info(f"Removed map from unbeaten map pack  {pack_id} - {i+1} / {nb_to_remove} : {t['TrackID']}")
 
         nb_to_add = len(new_tracks)
         for i, t in enumerate(new_tracks):
@@ -439,7 +439,7 @@ async def update_unbeaten_ats_map_pack_s2():
                 logging.warn(f"Failed to add map to unbeaten map pack {pack_id} - {i+1} / {nb_to_add} : {r}")
                 await set_map_status_in_map_pack(pack_id, 0, t[0], apikey)
             else:
-                logging.info(f"Added map to unbeaten map pack {pack_id}: {t[0]}")
+                logging.info(f"Added map to unbeaten map pack  {pack_id} - {i+1} / {nb_to_remove} : {t[0]}")
 
         await cycle_oldest_tracks(map_pack_maps, pack_id, apikey)
 
@@ -454,7 +454,6 @@ async def cycle_oldest_tracks(map_pack_maps: list[dict], pack_id: int, apikey: s
             logging.warning(f"Failed to remove map from unbeaten map pack {pack_id}: {r}")
         # else:
         #     logging.info(f"Removed map from unbeaten map pack: {t['TrackID']}")
-    await asyncio.sleep(.8)
     for t in to_cycle:
         r = await add_map_to_tmx_map_pack(pack_id, t['TrackID'], apikey)
         if r['Message'] != "Map successfully added.":
@@ -465,7 +464,12 @@ async def cycle_oldest_tracks(map_pack_maps: list[dict], pack_id: int, apikey: s
 
 def populate_map_pack_maps_added_ts(map_pack_maps: list[dict]):
     for t in map_pack_maps:
-        t['AddedTS'] = tmx_date_to_ts(t['AddedAt'])
+        try:
+            t['AddedTS'] = tmx_date_to_ts(t['AddedAt'])
+        except Exception as e:
+            logging.error(f"Failed to populate AddedTS for map pack map: {t} -- exception {e}")
+            raise e
+
 
 
 async def cache_unbeaten_ats():
