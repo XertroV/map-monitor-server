@@ -292,6 +292,6 @@ class CachedValue(models.Model):
 
 
 class TmxUnbeatenMapPackUpdated(models.Model):
-    track_id: int = models.IntegerField(db_index=True, unique=True),
-    pack_id: int = models.IntegerField(db_index=True),
+    TrackID: int = models.IntegerField(db_index=True, unique=True),
+    PackID: int = models.IntegerField(db_index=True),
     last_updated: float = models.FloatField(default=0, db_index=True)
