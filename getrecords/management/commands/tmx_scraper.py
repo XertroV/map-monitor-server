@@ -421,23 +421,25 @@ async def update_unbeaten_ats_map_pack_s2():
         new_tracks = [t for t in tracks if t[0] not in current_ids]
         rem_tracks = [t for t in map_pack_maps if t['TrackID'] not in unbeaten_ids]
 
-        logging.info(f"Unbeaten ATs S2: new: {len(new_tracks)}, rem: {len(rem_tracks)}")
-        for t in rem_tracks:
+        logging.info(f"Unbeaten ATs {pack_id}: new: {len(new_tracks)}, rem: {len(rem_tracks)}")
+        nb_to_remove = len(rem_tracks)
+        for i, t in enumerate(rem_tracks):
             # print(f"rem unbeaten: {t['TrackID']}")
             r = await remove_map_from_tmx_map_pack(pack_id, t['TrackID'], apikey)
             if r['Message'] != "Map successfully removed.":
-                logging.warn(f"Failed to remove map from unbeaten map pack: {r}")
+                logging.warn(f"Failed to remove map from unbeaten map pack {pack_id} - {i+1} / {nb_to_remove} : {r}")
             else:
-                logging.info(f"Removed map from unbeaten map pack: {t['TrackID']}")
+                logging.info(f"Removed map from unbeaten map pack {pack_id}: {t['TrackID']}")
 
-        for t in new_tracks:
+        nb_to_add = len(new_tracks)
+        for i, t in enumerate(new_tracks):
             # print(f"new unbeaten: {t[0]}")
             r = await add_map_to_tmx_map_pack(pack_id, t[0], apikey)
             if r['Message'] != "Map successfully added.":
-                logging.warn(f"Failed to add map to unbeaten map pack: {r}")
+                logging.warn(f"Failed to add map to unbeaten map pack {pack_id} - {i+1} / {nb_to_add} : {r}")
                 await set_map_status_in_map_pack(pack_id, 0, t[0], apikey)
             else:
-                logging.info(f"Added map to unbeaten map pack: {t[0]}")
+                logging.info(f"Added map to unbeaten map pack {pack_id}: {t[0]}")
 
         await cycle_oldest_tracks(map_pack_maps, pack_id, apikey)
 
@@ -449,14 +451,14 @@ async def cycle_oldest_tracks(map_pack_maps: list[dict], pack_id: int, apikey: s
     for t in to_cycle:
         r = await remove_map_from_tmx_map_pack(pack_id, t['TrackID'], apikey)
         if r['Message'] != "Map successfully removed.":
-            logging.warning(f"Failed to remove map from unbeaten map pack: {r}")
+            logging.warning(f"Failed to remove map from unbeaten map pack {pack_id}: {r}")
         # else:
         #     logging.info(f"Removed map from unbeaten map pack: {t['TrackID']}")
     await asyncio.sleep(.8)
     for t in to_cycle:
         r = await add_map_to_tmx_map_pack(pack_id, t['TrackID'], apikey)
         if r['Message'] != "Map successfully added.":
-            logging.warning(f"Failed to add map to unbeaten map pack: {r}")
+            logging.warning(f"Failed to add map to unbeaten map pack {pack_id}: {r}")
             await set_map_status_in_map_pack(pack_id, 0, t['TrackID'], apikey)
         else:
             logging.info(f"Cycled map in unbeaten map pack {pack_id}: {t['TrackID']}, added at {t['AddedAt']} = {t['AddedTS']}")
