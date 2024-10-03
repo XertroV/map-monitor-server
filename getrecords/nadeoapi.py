@@ -23,7 +23,9 @@ LOCAL_DEV_MODE = DEBUG
 dedi_server_acct_info = read_config_file('.dedi-server-acct', ['user', 'password'])
 # print(dedi_server_acct_info)
 
-TMX_MAPPACK_UNBEATEN_ATS_APIKEY = read_config_file('.tmx-mappack-unbeaten-ats', ['apikey'])['apikey']
+UNBEATEN_ATS_CONFIG = read_config_file('.tmx-mappack-unbeaten-ats', ['apikey', 's3_apikey'])
+TMX_MAPPACK_UNBEATEN_ATS_APIKEY = UNBEATEN_ATS_CONFIG['apikey']
+TMX_MAPPACK_UNBEATEN_ATS_S3_APIKEY = UNBEATEN_ATS_CONFIG['s3_apikey']
 
 UBI_SESSIONS_URL = "https://public-ubiservices.ubi.com/v3/profiles/sessions"
 NADEO_AUDIENCE_REG_URL = "https://prod.trackmania.core.nadeo.online/v2/authentication/token/ubiservices"

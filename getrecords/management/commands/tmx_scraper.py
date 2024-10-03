@@ -10,7 +10,7 @@ from django.core.management.base import BaseCommand, CommandError
 
 from getrecords.http import get_session
 from getrecords.models import CachedValue, MapTotalPlayers, TmxMap, TmxMapAT, TmxMapScrapeState
-from getrecords.nadeoapi import LOCAL_DEV_MODE, TMX_MAPPACK_UNBEATEN_ATS_APIKEY, get_map_records, run_nadeo_services_auth
+from getrecords.nadeoapi import LOCAL_DEV_MODE, TMX_MAPPACK_UNBEATEN_ATS_APIKEY, TMX_MAPPACK_UNBEATEN_ATS_S3_APIKEY, get_map_records, run_nadeo_services_auth
 from getrecords.tmx_maps import tmx_date_to_ts, update_tmx_tags_cached
 from getrecords.unbeaten_ats import TMX_MAPPACKID_UNBEATABLE_ATS, TMXIDS_UNBEATABLE_ATS
 from getrecords.utils import chunk, model_to_dict
@@ -23,6 +23,14 @@ AT_CHECK_BATCH_SIZE = 200
 TMX_MAPPACKID_UNBEATEN_ATS_S2 = 3306
 if LOCAL_DEV_MODE:
     TMX_MAPPACKID_UNBEATEN_ATS_S2 = 4412
+
+TMX_MAPPACKID_UNBEATEN_ATS_S3 = 5470
+
+def get_unbeaten_ats_id_key_for(tmx_id: int) -> tuple[int, str]:
+    if tmx_id < 200_000:
+        return TMX_MAPPACKID_UNBEATEN_ATS_S2, TMX_MAPPACK_UNBEATEN_ATS_APIKEY
+    return TMX_MAPPACKID_UNBEATEN_ATS_S3, TMX_MAPPACK_UNBEATEN_ATS_S3_APIKEY
+
 
 # if LOCAL_DEV_MODE:
 #     AT_CHECK_BATCH_SIZE = 5
@@ -65,9 +73,17 @@ def get_update_scrape_state():
     # june 24th
     return get_scrape_state("updated_tracks", 1687567560)
 
+first_run = True
+
 async def run_tmx_scraper(state: TmxMapScrapeState, update_state: TmxMapScrapeState):
     loop_seconds = 300
     while True:
+        # testing DB issue (integer out of range)
+        # if LOCAL_DEV_MODE:
+        #     while True:
+        #         await scrape_unbeaten_ats()
+
+
         start = time.time()
         if await is_close_to_cotd():
             logging.info(f"tmx scraper sleeping as we are close to COTD")
@@ -76,6 +92,10 @@ async def run_tmx_scraper(state: TmxMapScrapeState, update_state: TmxMapScrapeSt
         try:
             # to any fixes first (should be batched)
             await fix_at_beaten_first_nb()
+            if first_run:
+                first_run = False
+                logging.info(f"First run: cache_recently_beaten_ats")
+                await update_unbeaten_ats_map_pack_s2()
             # await fix_tmx_records()
             if LOCAL_DEV_MODE:
                 logging.info(f"Local dev: cache_recently_beaten_ats")
@@ -85,7 +105,6 @@ async def run_tmx_scraper(state: TmxMapScrapeState, update_state: TmxMapScrapeSt
                 logging.info(f"Local dev: scrape_unbeaten_ats")
                 await scrape_unbeaten_ats()
                 await cache_unbeaten_ats()
-                # await update_unbeaten_ats_map_pack_s2()
             latest_map = await get_latest_map_id()
             if latest_map > state.LastScraped:
                 await scrape_range(state, latest_map)
@@ -387,35 +406,63 @@ async def update_unbeaten_ats_map_pack_s2():
         return
     #TMX_MAPPACK_UNBEATEN_ATS_APIKEY
     unbeaten_ats = await CachedValue.objects.filter(name=UNBEATEN_ATS_CV_NAME).afirst()
-    s2_tracks = list(t for t in json.loads(unbeaten_ats.value)['tracks'] if t[0] >= 100_000)
-    # print(f"tracks: {tracks}")
-    map_pack_maps = await get_tmx_map_pack_maps(TMX_MAPPACKID_UNBEATEN_ATS_S2, TMX_MAPPACK_UNBEATEN_ATS_APIKEY)
-    current_ids = set(t['TrackID'] for t in map_pack_maps)
-    unbeaten_ids = set(t[0] for t in s2_tracks)
-    new_tracks = [t for t in s2_tracks if t[0] not in current_ids]
-    rem_tracks = [t for t in map_pack_maps if t['TrackID'] not in unbeaten_ids]
+    unbeaten_maps = json.loads(unbeaten_ats.value)['tracks']
+    s2_tracks = list(t for t in unbeaten_maps if t[0] >= 100_000 and t[0] < 200_000)
+    s3_tracks = list(t for t in unbeaten_maps if t[0] >= 200_000)
+    s2_data = (s2_tracks, TMX_MAPPACKID_UNBEATEN_ATS_S2, TMX_MAPPACK_UNBEATEN_ATS_APIKEY)
+    s3_data = (s3_tracks, TMX_MAPPACKID_UNBEATEN_ATS_S3, TMX_MAPPACK_UNBEATEN_ATS_S3_APIKEY)
 
-    logging.info(f"Unbeaten ATs S2: new: {len(new_tracks)}, rem: {len(rem_tracks)}")
-    for t in rem_tracks:
-        # print(f"rem unbeaten: {t['TrackID']}")
-        r = await remove_map_from_tmx_map_pack(TMX_MAPPACKID_UNBEATEN_ATS_S2, t['TrackID'], TMX_MAPPACK_UNBEATEN_ATS_APIKEY)
+    for (tracks, pack_id, apikey) in [s2_data, s3_data]:
+        # print(f"tracks: {tracks}")
+        map_pack_maps = await get_tmx_map_pack_maps(pack_id, apikey)
+        current_ids = set(t['TrackID'] for t in map_pack_maps)
+        unbeaten_ids = set(t[0] for t in tracks)
+        new_tracks = [t for t in tracks if t[0] not in current_ids]
+        rem_tracks = [t for t in map_pack_maps if t['TrackID'] not in unbeaten_ids]
+
+        logging.info(f"Unbeaten ATs S2: new: {len(new_tracks)}, rem: {len(rem_tracks)}")
+        for t in rem_tracks:
+            # print(f"rem unbeaten: {t['TrackID']}")
+            r = await remove_map_from_tmx_map_pack(pack_id, t['TrackID'], apikey)
+            if r['Message'] != "Map successfully removed.":
+                logging.warn(f"Failed to remove map from unbeaten map pack: {r}")
+            else:
+                logging.info(f"Removed map from unbeaten map pack: {t['TrackID']}")
+
+        for t in new_tracks:
+            # print(f"new unbeaten: {t[0]}")
+            r = await add_map_to_tmx_map_pack(pack_id, t[0], apikey)
+            if r['Message'] != "Map successfully added.":
+                logging.warn(f"Failed to add map to unbeaten map pack: {r}")
+                await set_map_status_in_map_pack(pack_id, 0, t[0], apikey)
+            else:
+                logging.info(f"Added map to unbeaten map pack: {t[0]}")
+
+        await cycle_oldest_tracks(map_pack_maps, pack_id, apikey)
+
+async def cycle_oldest_tracks(map_pack_maps: list[dict], pack_id: int, apikey: str, nb_to_cycle=20):
+    # cycle out oldest maps
+    populate_map_pack_maps_added_ts(map_pack_maps)
+    map_pack_maps.sort(key=lambda x: x['AddedTS'])
+    to_cycle = map_pack_maps[:nb_to_cycle]
+    for t in to_cycle:
+        r = await remove_map_from_tmx_map_pack(pack_id, t['TrackID'], apikey)
         if r['Message'] != "Map successfully removed.":
-            logging.warn(f"Failed to remove map from unbeaten map pack: {r}")
-        else:
-            logging.info(f"Removed map from unbeaten map pack: {t['TrackID']}")
-
-    for t in new_tracks:
-        # print(f"new unbeaten: {t[0]}")
-        r = await add_map_to_tmx_map_pack(TMX_MAPPACKID_UNBEATEN_ATS_S2, t[0], TMX_MAPPACK_UNBEATEN_ATS_APIKEY)
+            logging.warning(f"Failed to remove map from unbeaten map pack: {r}")
+        # else:
+        #     logging.info(f"Removed map from unbeaten map pack: {t['TrackID']}")
+    await asyncio.sleep(.8)
+    for t in to_cycle:
+        r = await add_map_to_tmx_map_pack(pack_id, t['TrackID'], apikey)
         if r['Message'] != "Map successfully added.":
-            logging.warn(f"Failed to add map to unbeaten map pack: {r}")
-            await set_map_status_in_map_pack(TMX_MAPPACKID_UNBEATEN_ATS_S2, 0, t[0], TMX_MAPPACK_UNBEATEN_ATS_APIKEY)
+            logging.warning(f"Failed to add map to unbeaten map pack: {r}")
+            await set_map_status_in_map_pack(pack_id, 0, t['TrackID'], apikey)
         else:
-            logging.info(f"Added map to unbeaten map pack: {t[0]}")
+            logging.info(f"Cycled map in unbeaten map pack {pack_id}: {t['TrackID']}, added at {t['AddedAt']} = {t['AddedTS']}")
 
-
-
-
+def populate_map_pack_maps_added_ts(map_pack_maps: list[dict]):
+    for t in map_pack_maps:
+        t['AddedTS'] = tmx_date_to_ts(t['AddedAt'])
 
 
 async def cache_unbeaten_ats():
