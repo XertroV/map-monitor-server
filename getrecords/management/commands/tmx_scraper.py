@@ -76,6 +76,7 @@ def get_update_scrape_state():
 first_run = True
 
 async def run_tmx_scraper(state: TmxMapScrapeState, update_state: TmxMapScrapeState):
+    global first_run
     loop_seconds = 300
     while True:
         # testing DB issue (integer out of range)
