@@ -460,12 +460,12 @@ async def cycle_oldest_tracks(map_pack_maps: list[dict], pack_id: int, apikey: s
             logging.warning(f"Failed to add map to unbeaten map pack {pack_id}: {r}")
             await set_map_status_in_map_pack(pack_id, 0, t['TrackID'], apikey)
         else:
-            logging.info(f"Cycled map in unbeaten map pack {pack_id}: {t['TrackID']}, added at {t['AddedAt']} = {t['AddedTS']}")
+            logging.info(f"Cycled map in unbeaten map pack {pack_id}: {t['TrackID']}, added at {t['Added']} = {t['AddedTS']}")
 
 def populate_map_pack_maps_added_ts(map_pack_maps: list[dict]):
     for t in map_pack_maps:
         try:
-            t['AddedTS'] = tmx_date_to_ts(t['AddedAt'])
+            t['AddedTS'] = tmx_date_to_ts(t['Added'])
         except Exception as e:
             logging.error(f"Failed to populate AddedTS for map pack map: {t} -- exception {e}")
             raise e
