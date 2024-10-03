@@ -9,7 +9,7 @@ from typing import Coroutine
 from django.core.management.base import BaseCommand, CommandError
 
 from getrecords.http import get_session
-from getrecords.models import CachedValue, MapTotalPlayers, TmxMap, TmxMapAT, TmxMapScrapeState
+from getrecords.models import CachedValue, MapTotalPlayers, TmxMap, TmxMapAT, TmxMapScrapeState, TmxUnbeatenMapPackUpdated
 from getrecords.nadeoapi import LOCAL_DEV_MODE, TMX_MAPPACK_UNBEATEN_ATS_APIKEY, TMX_MAPPACK_UNBEATEN_ATS_S3_APIKEY, get_map_records, run_nadeo_services_auth
 from getrecords.tmx_maps import tmx_date_to_ts, update_tmx_tags_cached
 from getrecords.unbeaten_ats import TMX_MAPPACKID_UNBEATABLE_ATS, TMXIDS_UNBEATABLE_ATS
@@ -440,27 +440,56 @@ async def update_unbeaten_ats_map_pack_s2():
                 await set_map_status_in_map_pack(pack_id, 0, t[0], apikey)
             else:
                 logging.info(f"Added map to unbeaten map pack  {pack_id} - {i+1} / {nb_to_remove} : {t[0]}")
+                TmxUnbeatenMapPackUpdated.objects.aupdate_or_create(pack_id=pack_id, track_id=t[0], defaults=dict(last_updated=time.time()))
 
         await cycle_oldest_tracks(map_pack_maps, pack_id, apikey)
 
 async def cycle_oldest_tracks(map_pack_maps: list[dict], pack_id: int, apikey: str, nb_to_cycle=20):
-    # cycle out oldest maps
-    populate_map_pack_maps_added_ts(map_pack_maps)
-    map_pack_maps.sort(key=lambda x: x['AddedTS'])
-    to_cycle = map_pack_maps[:nb_to_cycle]
+    maps_last_cycled = TmxUnbeatenMapPackUpdated.objects.filter(pack_id=pack_id).order_by('-last_updated')
+    mp_track_ids = set(t['TrackID'] for t in map_pack_maps)
+    last_cycled = set(t.track_id for t in maps_last_cycled)
+    to_cycle = list(t for t in map_pack_maps if t['TrackID'] not in last_cycled)
+    if len(to_cycle) < nb_to_cycle:
+        last_cycled_list = list(maps_last_cycled)
+        last_cycled_list.sort(key=lambda x: x.last_updated)
+        add_from_cycled = last_cycled_list[:nb_to_cycle - len(to_cycle)]
+        to_cycle += list(t for t in map_pack_maps if t['TrackID'] in add_from_cycled)
     for t in to_cycle:
-        r = await remove_map_from_tmx_map_pack(pack_id, t['TrackID'], apikey)
-        if r['Message'] != "Map successfully removed.":
-            logging.warning(f"Failed to remove map from unbeaten map pack {pack_id}: {r}")
-        # else:
-        #     logging.info(f"Removed map from unbeaten map pack: {t['TrackID']}")
-    for t in to_cycle:
-        r = await add_map_to_tmx_map_pack(pack_id, t['TrackID'], apikey)
-        if r['Message'] != "Map successfully added.":
-            logging.warning(f"Failed to add map to unbeaten map pack {pack_id}: {r}")
-            await set_map_status_in_map_pack(pack_id, 0, t['TrackID'], apikey)
-        else:
-            logging.info(f"Cycled map in unbeaten map pack {pack_id}: {t['TrackID']}, added at {t['Added']} = {t['AddedTS']}")
+        tid = t['TrackID']
+        await cycle_track_in_map_pack(pack_id, tid, apikey)
+        await TmxUnbeatenMapPackUpdated.objects.aupdate_or_create(pack_id=pack_id, track_id=tid, defaults=dict(last_updated=time.time()))
+
+
+async def cycle_track_in_map_pack(pack_id: int, tid: int, apikey: str):
+    r = await remove_map_from_tmx_map_pack(pack_id, tid, apikey)
+    if r['Message'] != "Map successfully removed.":
+        logging.warning(f"Failed to remove map from unbeaten map pack {pack_id}: {r}")
+    r = await add_map_to_tmx_map_pack(pack_id, tid, apikey)
+    if r['Message'] != "Map successfully added.":
+        logging.warning(f"Failed to add map to unbeaten map pack {pack_id}: {r}")
+        await set_map_status_in_map_pack(pack_id, 0, tid, apikey)
+    else:
+        logging.info(f"Cycled map in unbeaten map pack {pack_id}: {tid}")
+
+
+
+    # # cycle out oldest maps
+    # populate_map_pack_maps_added_ts(map_pack_maps)
+    # map_pack_maps.sort(key=lambda x: x['AddedTS'])
+    # to_cycle = map_pack_maps[:nb_to_cycle]
+    # for t in to_cycle:
+    #     r = await remove_map_from_tmx_map_pack(pack_id, t['TrackID'], apikey)
+    #     if r['Message'] != "Map successfully removed.":
+    #         logging.warning(f"Failed to remove map from unbeaten map pack {pack_id}: {r}")
+    #     # else:
+    #     #     logging.info(f"Removed map from unbeaten map pack: {t['TrackID']}")
+    # for t in to_cycle:
+    #     r = await add_map_to_tmx_map_pack(pack_id, t['TrackID'], apikey)
+    #     if r['Message'] != "Map successfully added.":
+    #         logging.warning(f"Failed to add map to unbeaten map pack {pack_id}: {r}")
+    #         await set_map_status_in_map_pack(pack_id, 0, t['TrackID'], apikey)
+    #     else:
+    #         logging.info(f"Cycled map in unbeaten map pack {pack_id}: {t['TrackID']}, added at {t['Added']} = {t['AddedTS']}")
 
 def populate_map_pack_maps_added_ts(map_pack_maps: list[dict]):
     for t in map_pack_maps:

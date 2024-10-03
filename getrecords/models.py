@@ -289,3 +289,9 @@ class CachedValue(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     value = models.TextField()
+
+
+class TmxUnbeatenMapPackUpdated(models.Model):
+    track_id: int = models.IntegerField(db_index=True, unique=True),
+    pack_id: int = models.IntegerField(db_index=True),
+    last_updated: float = models.FloatField(default=0, db_index=True)
