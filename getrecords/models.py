@@ -291,7 +291,9 @@ class CachedValue(models.Model):
     value = models.TextField()
 
 
-class TmxUnbeatenMapPackUpdated(models.Model):
-    TrackID: int = models.IntegerField(db_index=True, unique=True),
-    PackID: int = models.IntegerField(db_index=True),
+class TmxMapPackTrackUpdateLog(models.Model):
+    TrackID: int = models.IntegerField(null=False, db_index=True)
+    PackID: int = models.IntegerField(null=False, db_index=True)
     last_updated: float = models.FloatField(default=0, db_index=True)
+    class Meta:
+        unique_together = [('TrackID', 'PackID')]

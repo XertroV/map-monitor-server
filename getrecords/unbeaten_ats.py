@@ -223,5 +223,6 @@ TMXIDS_UNBEATABLE_ATS = set([
 51099,
 97741,
 75750,
-21864
+21864,
+103702, # gio template
 ])

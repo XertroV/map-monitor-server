@@ -12,3 +12,4 @@ python-getting-started
 tm-embed-items
 3164.json
 .tmx-mappack-unbeaten-ats
+getrecords/management/commands/test_upload_map.py
