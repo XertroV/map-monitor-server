@@ -460,22 +460,30 @@ async def cycle_oldest_tracks(map_pack_maps: list[dict], pack_id: int, apikey: s
         to_cycle += cycled_maps[:nb_to_cycle - len(to_cycle)]
     for t in to_cycle[:nb_to_cycle]:
         tid = t['TrackID']
-        await cycle_track_in_map_pack(pack_id, tid, apikey)
-        await TmxMapPackTrackUpdateLog.objects.aupdate_or_create(PackID=pack_id, TrackID=tid, defaults=dict(last_updated=time.time()))
+        if await cycle_track_in_map_pack(pack_id, tid, apikey):
+            await TmxMapPackTrackUpdateLog.objects.aupdate_or_create(PackID=pack_id, TrackID=tid, defaults=dict(last_updated=time.time()))
+        else:
+            logging.warn(f"Failed to cycle map {tid} in unbeaten map pack {pack_id}")
 
 
-async def cycle_track_in_map_pack(pack_id: int, tid: int, apikey: str):
+async def cycle_track_in_map_pack(pack_id: int, tid: int, apikey: str) -> bool:
     r = await remove_map_from_tmx_map_pack(pack_id, tid, apikey)
     if r['Message'] != "Map successfully removed.":
-        logging.warning(f"Failed to remove map from unbeaten map pack {pack_id}: {r}")
+        logging.warning(f"Failed to remove map {tid} from unbeaten map pack {pack_id}: {r}")
+        await set_map_status_in_map_pack(pack_id, 0, tid, apikey)
+        r = await remove_map_from_tmx_map_pack(pack_id, tid, apikey)
+        if r['Message'] != "Map successfully removed.":
+            logging.warning(f"Failed to remove map {tid} from unbeaten map pack {pack_id}: {r}")
     else:
         logging.info(f"Cycling map from unbeaten map pack {pack_id}: {tid}")
     r = await add_map_to_tmx_map_pack(pack_id, tid, apikey)
     if r['Message'] != "Map successfully added.":
-        logging.warning(f"Failed to add map to unbeaten map pack {pack_id}: {r}")
+        logging.warning(f"Failed to add map {tid} to unbeaten map pack {pack_id}: {r}")
         await set_map_status_in_map_pack(pack_id, 0, tid, apikey)
+        return False
     else:
         logging.info(f"Cycled map in unbeaten map pack {pack_id}: {tid}")
+    return True
 
 
 
