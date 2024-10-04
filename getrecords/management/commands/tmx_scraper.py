@@ -441,7 +441,7 @@ async def update_unbeaten_ats_map_pack_s2():
                 await set_map_status_in_map_pack(pack_id, 0, t[0], apikey)
             else:
                 logging.info(f"Added map to unbeaten map pack  {pack_id} - {i+1} / {nb_to_remove} : {t[0]}")
-                TmxMapPackTrackUpdateLog.objects.aupdate_or_create(PackID=pack_id, TrackID=t[0], defaults=dict(last_updated=time.time()))
+                await TmxMapPackTrackUpdateLog.objects.aupdate_or_create(PackID=pack_id, TrackID=t[0], defaults=dict(last_updated=time.time()))
 
         await cycle_oldest_tracks(map_pack_maps, pack_id, apikey)
 
@@ -449,16 +449,15 @@ async def cycle_oldest_tracks(map_pack_maps: list[dict], pack_id: int, apikey: s
     maps_last_cycled = TmxMapPackTrackUpdateLog.objects.filter(PackID=pack_id).order_by('-last_updated')
     mp_track_ids = set(t['TrackID'] for t in map_pack_maps)
     last_cycled = set()
-    async for t in maps_last_cycled[:nb_to_cycle*10]:
+    cycled_maps = list()
+    async for t in maps_last_cycled:
         if t.TrackID in mp_track_ids:
             last_cycled.add(t.TrackID)
+            cycled_maps.append(t)
     to_cycle = list(t for t in map_pack_maps if t['TrackID'] not in last_cycled)
     logging.info(f"Unbeaten ATs {pack_id}: to cycle: {len(to_cycle)}; last cycled: {len(last_cycled)}; total: {len(map_pack_maps)}")
     if len(to_cycle) < nb_to_cycle:
-        last_cycled_list = list(maps_last_cycled)
-        last_cycled_list.sort(key=lambda x: x.last_updated)
-        add_from_cycled = last_cycled_list[:nb_to_cycle - len(to_cycle)]
-        to_cycle += list(t for t in map_pack_maps if t['TrackID'] in add_from_cycled)
+        to_cycle += cycled_maps[:nb_to_cycle - len(to_cycle)]
     for t in to_cycle:
         tid = t['TrackID']
         await cycle_track_in_map_pack(pack_id, tid, apikey)
