@@ -461,7 +461,7 @@ async def cycle_oldest_tracks(map_pack_maps: list[dict], pack_id: int, apikey: s
     if len(to_cycle) < nb_to_cycle:
         to_cycle += cycled_maps[:nb_to_cycle - len(to_cycle)]
     for t in to_cycle[:nb_to_cycle]:
-        tid = t['TrackID']
+        tid = t['TrackID'] if isinstance(t, dict) else t.TrackID
         if await cycle_track_in_map_pack(pack_id, tid, apikey):
             await TmxMapPackTrackUpdateLog.objects.aupdate_or_create(PackID=pack_id, TrackID=tid, defaults=dict(last_updated=time.time()))
         else:
