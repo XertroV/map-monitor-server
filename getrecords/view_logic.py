@@ -49,6 +49,8 @@ async def refresh_nb_players_inner(map_uid: str, updated_ago_min_secs=-1) -> tup
     except Exception as e:
         logging.error(f"Error saving map total players: {e}")
         logging.error(f"Map total players: {mtp}")
+        logging.error(f"records: {records}")
+        logging.error(f"tops: {tops}")
         raise e
     return (mtp, False)
 

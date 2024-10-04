@@ -548,11 +548,11 @@ def mapsearch2_inner(request):
 
     state = get_scrape_state()
 
-    batch_size = 10
+    batch_size = 20
     count = 0
     last_track = None
     # now the random part
-    while count < 1000:
+    while count < 2000:
         count += batch_size
         rand_tids = list(random.randint(1, state.LastScraped + 1) for _ in range(batch_size))
         q_dict = dict(TrackID__in=rand_tids)
@@ -565,6 +565,8 @@ def mapsearch2_inner(request):
                 return HttpResponseNotFound(f"No maps found for author: {author}")
         print(f"Searched: {rand_tids}")
         print(f"search got tracks: {len(tracks)} / {resp_tids}")
+        no_track = []
+        no_match = []
         for tid in rand_tids:
             track: TmxMap | None = None
             for _track in tracks:
@@ -572,7 +574,8 @@ def mapsearch2_inner(request):
                     track = _track
                     break
             if track is None:
-                logging.info(f"No track {tid}")
+                # logging.info(f"No track {tid}")
+                no_track.append(tid)
                 continue
             last_track = track
             if not tmx_len_match(track, length_op, length) \
@@ -583,14 +586,15 @@ def mapsearch2_inner(request):
                 or not tmx_map_downloadable(track) \
                 or not tmx_map_okay_rmc(track) \
                 or not tmx_map_still_public(track):
-                logging.info(f"Track did not match: {track.TrackID}")
+                # logging.info(f"Track did not match: {track.TrackID}")
+                no_match.append(track.TrackID)
                 continue
-            logging.info(f"Found track: {track.TrackID}")
+            logging.info(f"Found track: {track.TrackID} / not found: {no_track} / no match: {no_match}")
             return JsonResponse({'results': [model_to_dict(track)], 'totalItemCount': 1})
         # track.Tags
     if last_track is not None:
         return JsonResponse({'results': [model_to_dict(last_track)], 'totalItemCount': 1})
-    return HttpResponseNotFound("Searched 1k maps but did not find a map")
+    return HttpResponseNotFound("Searched 2k maps but did not find a map")
 
 
 def clone_and_shuffle(xs: list) -> list:
