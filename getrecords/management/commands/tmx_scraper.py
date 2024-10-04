@@ -456,7 +456,6 @@ async def cycle_oldest_tracks(map_pack_maps: list[dict], pack_id: int, apikey: s
             last_cycled.add(t.TrackID)
             if now - t.last_updated > 86400:
                 cycled_maps.append(t)
-            cycled_maps.append(t)
     to_cycle = list(t for t in map_pack_maps if t['TrackID'] not in last_cycled)
     logging.info(f"Unbeaten ATs {pack_id}: to cycle: {len(to_cycle)}; last cycled: {len(last_cycled)}; total: {len(map_pack_maps)}")
     if len(to_cycle) < nb_to_cycle:
