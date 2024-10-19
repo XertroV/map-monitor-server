@@ -478,11 +478,15 @@ def tmx_len_match(m: TmxMap, op: LengthOp, l_enum: int) -> bool:
     if op == LengthOp.GTE: return m.LengthEnum >= l_enum
     return True
 
-def tmx_vehicle_match(m: TmxMap, vehicle) -> bool:
-    if vehicle == 0: return True
-    if vehicle == 1: return m.VehicleName == "CarSport" or m.VehicleName == "CarSnow" or m.VehicleName == "CarRally"
-    print(f"Unknown vehicle: {vehicle} / {m.VehicleName}")
-    return True
+def tmx_vehicle_match(m: TmxMap, vehicles: list[int]) -> bool:
+    if 0 in vehicles: return True
+    v = 1 if m.VehicleName == "CarSport" else \
+        2 if m.VehicleName == "CarSnow" else \
+        3 if m.VehicleName == "CarRally" else \
+        4 if m.VehicleName == "CarDesert" else -1
+    if v == -1:
+        print(f"Unknown vehicle: {vehicles} / {m.VehicleName}")
+    return v in vehicles
 
 def tmx_mtype_match(m: TmxMap, mtype) -> bool:
     if len(mtype) == 0: return True
@@ -540,7 +544,7 @@ def mapsearch2_inner(request):
             exclude_tags = list(map(int, request.GET.get('etags', '').split(",")))
         length_op = int(request.GET.get('lengthop', '0'))
         length = int(request.GET.get('length', '0'))
-        vehicles = int(request.GET.get('vehicles', '0'))
+        vehicles: list[int] = [int(x.strip()) for x in request.GET.get('vehicles', '0').split(',')]
         mtype = request.GET.get('mtype', '')
         author = request.GET.get('author', None)
     except Exception as e:
