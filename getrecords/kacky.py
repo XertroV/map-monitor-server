@@ -174,7 +174,7 @@ def check_for_unrecognized_style_props(style: str):
             raise Exception(f"unrecognized style prop: {prop}")
 
 async def get_kr5_html():
-    return TEST_HTML
+    # return TEST_HTML
     async with get_session() as session:
         try:
             async with session.get(f"https://kackyreloaded.com/event/editions/ranking.php?edition=5&raw=1") as resp:
@@ -187,7 +187,7 @@ async def get_kr5_html():
 
 
 async def get_kr5_maps_html():
-    return TEST_MAPS_HTML
+    # return TEST_MAPS_HTML
     async with get_session() as session:
         try:
             async with session.get(f"https://kackyreloaded.com/event/editions/records.php?edition=5&raw=1") as resp:
