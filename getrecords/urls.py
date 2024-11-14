@@ -22,6 +22,7 @@ urlpatterns = [
     # kr5 results
     path('kr5/results', views.get_kr5_cached_doc),
     path('kr5/maps', views.get_kr5_maps_cached_doc),
+    path('kr5/map/<int:map_number>', views.get_kr5_map_lb_cached_doc),
 
     # old archivist stuff
     path('upload/ghost/<str:map_uid>/<int:score>', views.ghost_upload, name='upload-ghost'),

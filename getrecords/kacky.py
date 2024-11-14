@@ -8,7 +8,7 @@ import bs4
 
 from getrecords.http import get_session
 from getrecords.models import CachedValue
-from getrecords.view_logic import KR5_MAPS_CV_NAME, KR5_RESULTS_CV_NAME, is_close_to_cotd
+from getrecords.view_logic import KR5_MAP_CV_NAME_FMT, KR5_MAPS_CV_NAME, KR5_RESULTS_CV_NAME, is_close_to_cotd
 
 
 
@@ -33,6 +33,40 @@ async def update_kacky_reloaded_5():
     await update_kr5_results()
     maps = await update_kr5_maps()
     # todo: loop through maps to get full LB so we can give ranking data
+    for i, map_data in enumerate(maps):
+        map_uid = map_data[2]
+        await update_kr5_map_lb(i, map_uid)
+    logging.info(f"-- DONE -- Updated KR5 data")
+
+
+async def update_kr5_map_lb(i: int, map_uid: str):
+    html_doc = await get_kr5_map_lb_html(map_uid)
+    soup = BeautifulSoup(html_doc, 'html.parser')
+    rows = soup.find_all('tr')
+    lb_doc = []
+    for row in rows:
+        cells = row.find_all('td')
+        if len(cells) < 4:
+            raise Exception(f"unexpected row with less than 4 cells: {row}")
+            continue
+        rank = int(cells[0].text)
+        nickname = cells[1].text.replace('\xa0', ' ')
+        name_formatted = bs4_to_openplanet(cells[1])
+        time = cells[2].text
+        finishes = int(cells[3].text)
+        lb_doc.append([rank, nickname, name_formatted, time, finishes])
+    await save_kr5_map_lb(i, lb_doc)
+    return lb_doc
+
+
+async def save_kr5_map_lb(i: int, lb_doc: list[list[str | int | float]]):
+    logging.info(f"Saving KR5 map LB {i} ({len(lb_doc)} records)")
+    cv = await CachedValue.objects.filter(name=KR5_MAP_CV_NAME_FMT.format(i)).afirst()
+    if cv is None:
+        cv = CachedValue(name=KR5_MAP_CV_NAME_FMT.format(i), value="")
+    cv.value = json.dumps(dict(lb=lb_doc, ts=time.time(), min_refresh_period=310))
+    await cv.asave()
+    logging.info(f"Cached kr5 map LB {i}; len={len(cv.value)} B / {len(lb_doc)} elements")
 
 
 async def update_kr5_results():
@@ -200,6 +234,7 @@ async def get_kr5_maps_html():
 
 
 async def get_kr5_map_lb_html(map_uid: str):
+    # return TEST_MAP_301_HTML
     async with get_session() as session:
         try:
             async with session.get(f"https://kackyreloaded.com/event/editions/maps.php?uid={map_uid}&raw=1") as resp:
@@ -210,6 +245,70 @@ async def get_kr5_map_lb_html(map_uid: str):
         except asyncio.TimeoutError as e:
             raise Exception(f"KR5 timeout for getting map LB data")
 
+
+
+
+
+TEST_MAP_301_HTML = """
+<body>
+    <nav class="navbar box-shadow navbar-expand-md navbar-dark bg-ka">
+        <div class="container">
+            <div class="mx-auto order-0">
+                <a class="navbar-brand" href="/">
+                    <img src="/images/logo.png" height="10" alt="">
+                </a>
+                <button class="navbar-toggler" type="button" data-toggle="collapse" data-target=".dual-collapse2">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+            </div>
+            <div class="navbar-collapse collapse w-100 order-1 order-md-0 dual-collapse2">
+                <ul class="navbar-nav mr-auto">
+                    <li class="nav-item">
+                            <a class="nav-link" href="/event/editions/ranking.php?edition=1"><span style='color:#aaaa00;font-style:italic;font-weight:bold;'>K</span><span style='color:#0055aa;font-style:italic;font-weight:bold;'>R</span><span style='color:#66aa00;font-style:italic;font-weight:bold;'>1</span></a>
+                            </li><li class="nav-item">
+                            <a class="nav-link" href="/event/editions/ranking.php?edition=2"><span style='color:#aaaa00;font-style:italic;font-weight:bold;'>K</span><span style='color:#0055aa;font-style:italic;font-weight:bold;'>R</span><span style='color:#66aa00;font-style:italic;font-weight:bold;'>2</span></a>
+                            </li><li class="nav-item">
+                            <a class="nav-link" href="/event/editions/ranking.php?edition=3"><span style='color:#aaaa00;font-style:italic;font-weight:bold;'>K</span><span style='color:#0055aa;font-style:italic;font-weight:bold;'>R</span><span style='color:#66aa00;font-style:italic;font-weight:bold;'>3</span></a>
+                            </li><li class="nav-item">
+                            <a class="nav-link" href="/event/editions/ranking.php?edition=4"><span style='color:#aaaa00;font-style:italic;font-weight:bold;'>K</span><span style='color:#0055aa;font-style:italic;font-weight:bold;'>R</span><span style='color:#66aa00;font-style:italic;font-weight:bold;'>4</span></a>
+                            </li><li class="nav-item">
+                            <a class="nav-link" href="/event/editions/ranking.php?edition=5"><span style='color:#aaaa00;font-style:italic;font-weight:bold;'>K</span><span style='color:#0055aa;font-style:italic;font-weight:bold;'>R</span><span style='color:#66aa00;font-style:italic;font-weight:bold;'>5</span></a>
+                            </li>                </ul>
+            </div>
+
+            <div class="navbar-collapse collapse w-100 order-3 dual-collapse2">
+                <ul class="navbar-nav ml-auto">
+					<a href="/event/editions/ranking.php?edition=0"><button
+                            class="btn btn-kacky navbar-btn shadow-none box-shadow">All Editions</button></a>
+					<a href="https://kacky.gg/" target="_blank"><button
+                            class="btn btn-kacky navbar-btn shadow-none box-shadow">Event Page</button></a>
+					<!--
+					<a href="/event/leaderboard/"><button
+                            class="btn btn-kacky navbar-btn shadow-none box-shadow">Leaderboard</button></a>
+					-->
+                    <a href="https://kacky.gg/discord" target="_blank"><img src="/images/discord.png" style="width:42px;height:42px;position:absolute;right:10px"></img></a>
+					<a href="/hunting/"><button
+                            class="btn btn-event-global navbar-btn shadow-none box-shadow" style="position:absolute;left:10px">Show Hunting</button></a>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+	<div class="container">
+	  <ul class="nav justify-content-center mt-2">
+				<li class="nav-item">
+		  <a class="nav-link" href="ranking.php?edition=5">Ranking</a>
+		</li>
+		<li class="nav-item">
+		  <a class="nav-link active" href="records.php?edition=5">Maps</a>
+		</li>
+		<li class="nav-item">
+		  <a class="nav-link" href="topsums.php?edition=5">TopSums</a>
+		</li>
+			  </ul>
+	</div>
+<tr><td>1</td><td><a href=players.php?pid=842&edition=5>SmithyTM</a></td><td>00:17.48</td><td>2</td></tr><tr><td>2</td><td><a href=players.php?pid=55440&edition=5><span style='color:#5588ff;'>O</span><span style='color:#6688ff;'>n</span><span style='color:#8888ff;'>t</span><span style='color:#9988ff;'>r</span><span style='color:#9988ff;'>i</span><span style='color:#aa88ff;'>c</span><span style='color:#cc88ff;'>u</span><span style='color:#dd88ff;'>s</span></a></td><td>00:17.91</td><td>1</td></tr><tr><td>3</td><td><a href=players.php?pid=19453&edition=5><span style='color:#9900ff;font-style:italic;'>V</span><span style='color:#aa00ff;font-style:italic;'>e</span><span style='color:#bb00ff;font-style:italic;'>r</span><span style='color:#cc00ff;font-style:italic;'>t</span><span style='color:#cc00ff;font-style:italic;'>u</span><span style='color:#bb00ff;font-style:italic;'>n</span><span style='color:#ffffff;font-style:italic;'>!&nbsp;</span></a></td><td>00:17.99</td><td>1</td></tr><tr><td>4</td><td><a href=players.php?pid=23074&edition=5><span style='color:#000000;'>monka&nbsp;</span><span style='color:#ffffff;'>|&nbsp;Sileenzz</span></a></td><td>00:18.04</td><td>1</td></tr><tr><td>5</td><td><a href=players.php?pid=2897&edition=5><span style='color:#ffcc00;'>S</span><span style='color:#ffffff;'>crapie</span></a></td><td>00:18.26</td><td>1</td></tr><tr><td>6</td><td><a href=players.php?pid=16199&edition=5><span style='color:#11dd55;'>gloя</span><span style='color:#11dd55;'>p&nbsp;</span>|&nbsp;<span style='color:#996600;font-style:italic;'>K</span><span style='color:#aa6600;font-style:italic;'>a</span><span style='color:#aa7700;font-style:italic;'>k</span><span style='color:#bb7700;font-style:italic;'>ki</span><span style='color:#bb7700;font-style:italic;'>e</span><span style='color:#bb7711;font-style:italic;'>b</span><span style='color:#aa7722;font-style:italic;'>o</span><span style='color:#aa6622;font-style:italic;'>e</span><span style='color:#996633;font-style:italic;'>r&nbsp;:egg:</span></a></td><td>00:18.38</td><td>2</td></tr><tr><td>7</td><td><a href=players.php?pid=1294&edition=5><span style='color:#11dd55;'>gloя</span><span style='color:#11dd55;'>p&nbsp;</span>|&nbsp;<span style='font-style:italic;'>Tarpor</span></a></td><td>00:18.42</td><td>1</td></tr><tr><td>8</td><td><a href=players.php?pid=6420&edition=5><span style='color:#ff6600;font-weight:bold;'>f6_t</span></a></td><td>00:18.65</td><td>1</td></tr><tr><td>9</td><td><a href=players.php?pid=41&edition=5><span style='color:#ffffff;font-style:italic;font-weight:bold;'>ฬ</span><span style='font-style:italic;'>ir</span><span style='color:#ee7700;font-style:italic;'>t</span><span style='color:#ffffff;font-style:italic;'>ual</span></a></td><td>00:18.73</td><td>1</td></tr><tr><td>10</td><td><a href=players.php?pid=18&edition=5><span style='color:#ffffff;'>&nbsp;menfou&nbsp;|&nbsp;</span><span style='color:#66ccff;font-style:italic;font-weight:bold;'>skandear</span></a></td><td>00:18.90</td><td>1</td></tr><tr><td>11</td><td><a href=players.php?pid=70328&edition=5>jantronix1</a></td><td>00:18.94</td><td>1</td></tr><tr><td>12</td><td><a href=players.php?pid=22276&edition=5><span style='color:#ff9900;'>B</span><span style='color:#ffffff;'>ye</span></a></td><td>00:19.06</td><td>1</td></tr><tr><td>13</td><td><a href=players.php?pid=29565&edition=5>[<span style='color:#ff0000;'>WH</span><span style='color:#ffff88;'>OP</span>]SSano</a></td><td>00:19.15</td><td>1</td></tr><tr><td>14</td><td><a href=players.php?pid=52254&edition=5><span style='color:#cc0033;'>W</span><span style='color:#991177;'>i</span><span style='color:#6622bb;'>k</span><span style='color:#3333ff;'>k</span><span style='color:#3333ff;'>y</span><span style='color:#222288;'>9</span><span style='color:#000000;'>6</span></a></td><td>00:19.17</td><td>1</td></tr><tr><td>15</td><td><a href=players.php?pid=14&edition=5><span style='color:#33aa55;font-style:italic;'>Yek</span><span style='color:#ffffff;font-style:italic;'>ky.</span></a></td><td>00:19.58</td><td>1</td></tr><tr><td>16</td><td><a href=players.php?pid=2463&edition=5>Yannex</a></td><td>00:19.85</td><td>1</td></tr><tr><td>17</td><td><a href=players.php?pid=24747&edition=5><span style='color:#ff9900;'>save&nbsp;</span><span style='color:#ffffff;'>me</span></a></td><td>00:19.97</td><td>1</td></tr><tr><td>18</td><td><a href=players.php?pid=1710&edition=5><span style='color:#ffffff;font-style:italic;'>&raquo;</span><span style='color:#99ffff;font-style:italic;'>エ</span><span style='color:#66ffff;font-style:italic;'>c</span><span style='color:#33ffff;font-style:italic;'>e</span><span style='color:#000000;font-style:italic;'>.</span></a></td><td>00:20.03</td><td>1</td></tr><tr><td>19</td><td><a href=players.php?pid=2915&edition=5><span style='color:#aaddee;font-style:italic;'>saucey</span></a></td><td>00:20.05</td><td>1</td></tr><tr><td>20</td><td><a href=players.php?pid=48687&edition=5><span style='color:#ff0000;'>Le</span><span style='color:#ffffff;'>m</span><span style='color:#0000ff;'>on&nbsp;</span><span style='color:#ffffff;'>:)&nbsp;</span><span style='color:#ffff00;'>ᄓ&nbsp;</span><span style='color:#ffffff;'>boosт&sup3;</span></a></td><td>00:20.63</td><td>1</td></tr><tr><td>21</td><td><a href=players.php?pid=25376&edition=5><span style='color:#ffffff;'>iiHugo</span><span style='color:#0099cc;'>&nbsp;&laquo;</span><span style='color:#ffffff;'>&nbsp;т</span><span style='color:#0099cc;'>&sup3;</span></a></td><td>00:20.68</td><td>1</td></tr><tr><td>22</td><td><a href=players.php?pid=33369&edition=5><span style='color:#33aa55;'>mik</span><span style='color:#ffffff;'>mos.</span></a></td><td>00:20.76</td><td>1</td></tr><tr><td>23</td><td><a href=players.php?pid=13056&edition=5><span style='color:#ff0000;'>4</span><span style='color:#cc0000;'>Y</span><span style='color:#990000;'>o</span><span style='color:#660000;'>u</span><span style='color:#330000;'>r</span><span style='color:#000000;'>N</span><span style='color:#000000;'>e</span><span style='color:#000033;'>m</span><span style='color:#000066;'>e</span><span style='color:#000099;'>s</span><span style='color:#0000cc;'>i</span><span style='color:#0000ff;'>s</span></a></td><td>00:20.77</td><td>1</td></tr><tr><td>24</td><td><a href=players.php?pid=873&edition=5>TeraTM</a></td><td>00:21.00</td><td>1</td></tr><tr><td>25</td><td><a href=players.php?pid=11088&edition=5><span style='color:#33aa55;letter-spacing: -0.1em;font-size:smaller'>Da</span><span style='color:#ffffff;letter-spacing: -0.1em;font-size:smaller'>Best</span></a></td><td>00:21.39</td><td>1</td></tr><tr><td>26</td><td><a href=players.php?pid=7180&edition=5><span style='color:#ffffff;'>bren</span><span style='color:#ffcc33;'>!</span></a></td><td>00:21.52</td><td>1</td></tr><tr><td>27</td><td><a href=players.php?pid=6080&edition=5>simo&nbsp;<span style='color:#ffcc22;'>:</span><span style='color:#ff9933;'>s</span><span style='color:#ee6633;'>m</span><span style='color:#ee6633;'>i</span><span style='color:#ee5533;'>r</span><span style='color:#ee3333;'>k</span><span style='color:#cc1177;'>c</span><span style='color:#992277;'>a</span><span style='color:#662266;'>t</span><span style='color:#333366;'>:</span></a></td><td>00:21.67</td><td>1</td></tr><tr><td>28</td><td><a href=players.php?pid=814&edition=5><span style='color:#0000dd;'>&raquo;ғฟ๏&laquo;&nbsp;</span><span style='color:#ffffff;'>Ŀ&iota;и&kappa;.</span><span style='color:#ff0000;'>*&nbsp;</span><span style='color:#bbbbbb;'>Law</span></a></td><td>00:21.69</td><td>1</td></tr><tr><td>29</td><td><a href=players.php?pid=7339&edition=5>Bijan</a></td><td>00:21.88</td><td>1</td></tr><tr><td>30</td><td><a href=players.php?pid=7098&edition=5><span style='color:#33aa55;font-weight:bold;'>Dud</span><span style='color:#ffffff;font-weight:bold;'>aैlu</span></a></td><td>00:22.31</td><td>1</td></tr><tr><td>31</td><td><a href=players.php?pid=23137&edition=5>the&nbsp;rat,</a></td><td>00:22.62</td><td>1</td></tr><tr><td>32</td><td><a href=players.php?pid=23083&edition=5><span style='color:#000000;'>monka&nbsp;</span><span style='color:#ffffff;'>|&nbsp;zetos</span></a></td><td>00:24.19</td><td>1</td></tr><tr><td>33</td><td><a href=players.php?pid=6789&edition=5><span style='color:#ff9900;'>S</span><span style='color:#ffaa22;'>a</span><span style='color:#ffbb44;'>m</span><span style='color:#ffbb66;'>i</span><span style='color:#ffcc88;'>f</span><span style='color:#ffdd99;'>y</span><span style='color:#ffeebb;'>i</span><span style='color:#ffeedd;'>n</span><span style='color:#ffffff;'>g</span></a></td><td>00:25.09</td><td>1</td></tr><tr><td>34</td><td><a href=players.php?pid=19311&edition=5><span style='color:#ff9900;'>Pi</span><span style='color:#ffffff;'>a:YEK:</span></a></td><td>00:25.43</td><td>1</td></tr>
+"""
 
 TEST_MAPS_HTML = """
 <body>

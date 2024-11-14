@@ -36,7 +36,7 @@ from mapmonitor.settings import CACHE_5_MIN, CACHE_8HRS_TTL, CACHE_COTD_TTL, CAC
 from .models import CachedValue, Challenge, CotdChallenge, CotdChallengeRanking, CotdQualiTimes, Ghost, MapTotalPlayers, TmxMap, TmxMapAT, Track, TrackStats, User, UserStats, UserTrackPlay
 from .nadeoapi import LOCAL_DEV_MODE, core_get_maps_by_uid, get_and_save_all_challenge_records, nadeo_get_nb_players_for_map, nadeo_get_surround_for_map
 import getrecords.nadeoapi as nadeoapi
-from .view_logic import CURRENT_COTD_KEY, KR5_MAPS_CV_NAME, KR5_RESULTS_CV_NAME, NB_PLAYERS_CACHE_SECONDS, NB_PLAYERS_MAX_CACHE_SECONDS, RECENTLY_BEATEN_ATS_CV_NAME, TRACK_UIDS_CV_NAME, UNBEATEN_ATS_CV_NAME, get_tmx_map, get_unbeaten_ats_query, refresh_nb_players_inner, QUALI_TIMES_CACHE_SECONDS, tmx_map_still_public
+from .view_logic import CURRENT_COTD_KEY, KR5_MAP_CV_NAME_FMT, KR5_MAPS_CV_NAME, KR5_RESULTS_CV_NAME, NB_PLAYERS_CACHE_SECONDS, NB_PLAYERS_MAX_CACHE_SECONDS, RECENTLY_BEATEN_ATS_CV_NAME, TRACK_UIDS_CV_NAME, UNBEATEN_ATS_CV_NAME, get_tmx_map, get_unbeaten_ats_query, refresh_nb_players_inner, QUALI_TIMES_CACHE_SECONDS, tmx_map_still_public
 
 
 def json_resp(m: Model):
@@ -763,6 +763,13 @@ def get_kr5_maps_cached_doc(request):
         return JsonEncodedResponse(cached_value.value)
     return JsonResponse(dict(error='not yet initialized'))
 
+def get_kr5_map_lb_cached_doc(request, map_number: int):
+    if map_number < 0 or map_number > 74:
+        return JsonResponse(dict(error='Invalid map number'))
+    cached_value = CachedValue.objects.filter(name=KR5_MAP_CV_NAME_FMT.format(map_number)).first()
+    if cached_value is not None:
+        return JsonEncodedResponse(cached_value.value)
+    return JsonResponse(dict(error='not yet initialized'))
 
 class JsonEncodedResponse(HttpResponse):
     def __init__(self, *args, **kwargs):
