@@ -19,6 +19,10 @@ urlpatterns = [
     path('cached/api/challenges/<int:challenge_id>/records/maps/<str:map_uid>/players', views.cached_api_challenges_id_records_maps_uid_players),
     path('cached/api/cup-of-the-day/current', views.cached_api_cotd_current),
 
+    # kr5 results
+    path('kr5/results', views.get_kr5_cached_doc),
+    path('kr5/maps', views.get_kr5_maps_cached_doc),
+
     # old archivist stuff
     path('upload/ghost/<str:map_uid>/<int:score>', views.ghost_upload, name='upload-ghost'),
     path('upload/ghost/<str:map_uid>/-<int:score>', views.ghost_upload, name='upload-ghost'),

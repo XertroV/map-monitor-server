@@ -36,7 +36,7 @@ from mapmonitor.settings import CACHE_5_MIN, CACHE_8HRS_TTL, CACHE_COTD_TTL, CAC
 from .models import CachedValue, Challenge, CotdChallenge, CotdChallengeRanking, CotdQualiTimes, Ghost, MapTotalPlayers, TmxMap, TmxMapAT, Track, TrackStats, User, UserStats, UserTrackPlay
 from .nadeoapi import LOCAL_DEV_MODE, core_get_maps_by_uid, get_and_save_all_challenge_records, nadeo_get_nb_players_for_map, nadeo_get_surround_for_map
 import getrecords.nadeoapi as nadeoapi
-from .view_logic import CURRENT_COTD_KEY, NB_PLAYERS_CACHE_SECONDS, NB_PLAYERS_MAX_CACHE_SECONDS, RECENTLY_BEATEN_ATS_CV_NAME, TRACK_UIDS_CV_NAME, UNBEATEN_ATS_CV_NAME, get_tmx_map, get_unbeaten_ats_query, refresh_nb_players_inner, QUALI_TIMES_CACHE_SECONDS, tmx_map_still_public
+from .view_logic import CURRENT_COTD_KEY, KR5_MAPS_CV_NAME, KR5_RESULTS_CV_NAME, NB_PLAYERS_CACHE_SECONDS, NB_PLAYERS_MAX_CACHE_SECONDS, RECENTLY_BEATEN_ATS_CV_NAME, TRACK_UIDS_CV_NAME, UNBEATEN_ATS_CV_NAME, get_tmx_map, get_unbeaten_ats_query, refresh_nb_players_inner, QUALI_TIMES_CACHE_SECONDS, tmx_map_still_public
 
 
 def json_resp(m: Model):
@@ -733,23 +733,41 @@ def get_unbeaten_at_details(request, trackid:int):
 def unbeaten_ats(request):
     unbeaten_ats = CachedValue.objects.filter(name=UNBEATEN_ATS_CV_NAME).first()
     if unbeaten_ats is not None:
-        return JsonResponse(json.loads(unbeaten_ats.value))
+        return JsonEncodedResponse(unbeaten_ats.value)
     return JsonResponse(dict(error='not yet initialized'))
 
 
 def recently_beaten_ats(request):
     beaten_ats = CachedValue.objects.filter(name=RECENTLY_BEATEN_ATS_CV_NAME).first()
     if beaten_ats is not None:
-        return JsonResponse(json.loads(beaten_ats.value))
+        return JsonEncodedResponse(beaten_ats.value)
     return JsonResponse(dict(error='not yet initialized'))
 
 
 def track_ids_to_uid(request):
     cached_value = CachedValue.objects.filter(name=TRACK_UIDS_CV_NAME).first()
     if cached_value is not None:
-        return JsonResponse(json.loads(cached_value.value))
+        return JsonEncodedResponse(cached_value.value)
     return JsonResponse(dict(error='not yet initialized'))
 
+
+def get_kr5_cached_doc(request):
+    cached_value = CachedValue.objects.filter(name=KR5_RESULTS_CV_NAME).first()
+    if cached_value is not None:
+        return JsonEncodedResponse(cached_value.value)
+    return JsonResponse(dict(error='not yet initialized'))
+
+def get_kr5_maps_cached_doc(request):
+    cached_value = CachedValue.objects.filter(name=KR5_MAPS_CV_NAME).first()
+    if cached_value is not None:
+        return JsonEncodedResponse(cached_value.value)
+    return JsonResponse(dict(error='not yet initialized'))
+
+
+class JsonEncodedResponse(HttpResponse):
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault("content_type", "application/json")
+        super().__init__(*args, **kwargs)
 
 
 

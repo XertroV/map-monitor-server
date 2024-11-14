@@ -1,9 +1,10 @@
 
 import asyncio
+import json
 import logging
 import time
 from getrecords.http import get_session
-from getrecords.models import MapTotalPlayers, TmxMap, TmxMapAT
+from getrecords.models import CachedValue, MapTotalPlayers, TmxMap, TmxMapAT
 from getrecords.nadeoapi import LOCAL_DEV_MODE, nadeo_get_nb_players_for_map
 from getrecords.utils import run_async
 
@@ -71,6 +72,9 @@ UNBEATEN_ATS_CV_NAME = "UnbeatenATs"
 RECENTLY_BEATEN_ATS_CV_NAME = "RecentlyBeatenATs"
 TRACK_UIDS_CV_NAME = "TrackIDToUID"
 CURRENT_COTD_KEY = "COTD_current"
+KR5_RESULTS_CV_NAME = "KR5Results"
+KR5_MAPS_CV_NAME = "KR5Maps"
+KR5_MAP_CV_NAME_FMT = "KR5Map_{0}"
 
 
 async def get_tmx_map(tid: int, timeout=1.5):
@@ -169,3 +173,20 @@ def tmx_map_still_public(m: TmxMap) -> bool:
     # except Exception as e:
     #     logging.warn(f"Exception checking if tmx map still public: {e}")
     return True
+
+
+
+
+async def is_close_to_cotd(buffer_seconds=360):
+    next_cotd = await CachedValue.objects.filter(name=CURRENT_COTD_KEY).afirst()
+    if next_cotd is None: return False
+    try:
+        next_cotd_j = json.loads(next_cotd.value)
+        c = next_cotd_j['challenge']
+        s = c['startDate']
+        e = c['endDate']
+        # close = within 6 minutes beforehand or during
+        return (s - buffer_seconds) <= time.time() <= e
+    except Exception as e:
+        logging.warn(f"Failed to read next COTD times: {e}")
+    return False
