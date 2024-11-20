@@ -136,6 +136,9 @@ class TmxMap(models.Model):
     ReplayWRUserID: int = models.IntegerField(null=True)
     ReplayWRUsername: str = models.CharField(max_length=64, null=True)
 
+    class Meta:
+        index_together = [('MapType', 'TrackID')]
+
     def __init__(self, *args, LengthName="2 m 30 s", LengthSecs=None, **kwargs):
         if LengthSecs is None:
             LengthSecs = 0

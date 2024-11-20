@@ -38,6 +38,19 @@ from .nadeoapi import LOCAL_DEV_MODE, core_get_maps_by_uid, get_and_save_all_cha
 import getrecords.nadeoapi as nadeoapi
 from .view_logic import CURRENT_COTD_KEY, KR5_MAP_CV_NAME_FMT, KR5_MAPS_CV_NAME, KR5_RESULTS_CV_NAME, NB_PLAYERS_CACHE_SECONDS, NB_PLAYERS_MAX_CACHE_SECONDS, RECENTLY_BEATEN_ATS_CV_NAME, TRACK_UIDS_CV_NAME, UNBEATEN_ATS_CV_NAME, get_tmx_map, get_unbeaten_ats_query, refresh_nb_players_inner, QUALI_TIMES_CACHE_SECONDS, tmx_map_still_public
 
+# if LOCAL_DEV_MODE:
+#     logging.basicConfig(level=logging.DEBUG)
+
+def benchmark_request(f):
+    def _inner(request: HttpRequest, *args, **kwargs):
+        start = time.time()
+        resp = f(request, *args, **kwargs)
+        end = time.time()
+        logging.info(f"Request {request.path} took {end - start} seconds")
+        return resp
+    return _inner
+
+
 
 def json_resp(m: Model):
     return JsonResponse(model_to_dict(m))
@@ -679,6 +692,14 @@ def get_requests_query_tags(request):
     return list(map(int, s.split(',')))
 
 
+def get_requests_query_int(request, key: str, default: int) -> int:
+    s = request.GET.get(key, str(default))
+    try:
+        return int(s)
+    except Exception as e:
+        return default
+
+
 def tags_to_names(tags: list[int]) -> list[str]:
     if len(tmx_tags_lookup) == 0:
         update_tmx_tag_lookup()
@@ -688,25 +709,71 @@ def tags_to_names(tags: list[int]) -> list[str]:
     return ret
 
 
+def tmx_next_map_Track_to_dict(next_map: TmxMap, req_tags: list[int] | None) -> dict | None:
+    map_tags = list(map(int, (next_map.Tags or "").split(',')))
+    if req_tags is None or len(req_tags) == 0 or any(t in map_tags for t in req_tags):
+        return dict(next=next_map.TrackID, next_uid=next_map.TrackUID, tags=map_tags, tag_names=tags_to_names(map_tags), name=next_map.Name, author=next_map.Username, type=next_map.MapType)
+    return None
+
+
+@benchmark_request
 def tmx_next_map(request, map_id: int):
+    start = time.time()
     tags = get_requests_query_tags(request)
-    next_maps = TmxMap.objects.filter(TrackID__gt=map_id, MapType__contains="TM_Race")
+    extra_maps = min(100, get_requests_query_int(request, 'extra', 5))
+    next_maps = TmxMap.objects.filter(TrackID__gt=map_id, MapType="TM_Race")
     if len(tags) > 0:
         next_maps = next_maps.filter(reduce(operator.or_, (Q(Tags__contains=f"{t}") for t in tags)))
     next_maps = next_maps.order_by('TrackID')
 
-    if len(tags) > 0:
-        for next_map in next_maps:
-            map_tags = list(map(int, (next_map.Tags or "").split(',')))
-            if any(t in map_tags for t in tags):
-                return JsonResponse(dict(next=next_map.TrackID, next_uid=next_map.TrackUID, tags=map_tags, tag_names=tags_to_names(map_tags), name=next_map.Name, author=next_map.Username))
-    else:
-        next_map = next_maps.first()
-        map_tags = list(map(int, (next_map.Tags or "").split(',')))
-        if next_map is not None:
-            return JsonResponse(dict(next=next_map.TrackID, next_uid=next_map.TrackUID, tags=map_tags, tag_names=tags_to_names(map_tags), name=next_map.Name, author=next_map.Username))
+    resp, extra = None, list()
+    def _add_next_map(nm: TmxMap, r_tags: list[int] | None) -> bool:
+        ''' returns True if we have enough maps '''
+        nonlocal resp, extra
+        d = tmx_next_map_Track_to_dict(nm, r_tags)
+        if d is None: return False
+        if resp is None:
+            resp = d
+        else:
+            extra.append(d)
+        return resp is not None and len(extra) >= extra_maps
 
-    return JsonResponse(dict(next=1))
+    def next_map_iter():
+        nonlocal next_maps
+        l, h = 0, 100
+        while True:
+            r = next_maps[l:h]
+            l = h
+            h += 100
+            if len(r) == 0: break
+            yield r
+
+    b = False
+    for chunk in next_map_iter():
+        for next_map in chunk:
+            if _add_next_map(next_map, tags):
+                b = True
+                break
+        if b: break
+
+    # if len(tags) > 0:
+    #         # map_tags = list(map(int, (next_map.Tags or "").split(',')))
+    #         # if any(t in map_tags for t in tags):
+    #         #     return JsonResponse(dict(next=next_map.TrackID, next_uid=next_map.TrackUID, tags=map_tags, tag_names=tags_to_names(map_tags), name=next_map.Name, author=next_map.Username))
+    # else:
+    #     next_map = next_maps.first()
+
+    #     # map_tags = list(map(int, (next_map.Tags or "").split(',')))
+    #     # if next_map is not None:
+    #     #     return JsonResponse(dict(next=next_map.TrackID, next_uid=next_map.TrackUID, tags=map_tags, tag_names=tags_to_names(map_tags), name=next_map.Name, author=next_map.Username))
+
+    if resp is None:
+        resp = dict(next=1)
+    else:
+        resp['extra_nb'] = len(extra)
+        resp['extra'] = extra
+
+    return JsonResponse(resp)
 
 def tmx_prev_map(request, map_id: int):
     prev_map = TmxMap.objects.filter(TrackID__lt=map_id, MapType__contains="TM_Race").order_by('-TrackID').first()
