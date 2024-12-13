@@ -19,7 +19,7 @@ from django.db import IntegrityError
 from django.shortcuts import render, get_object_or_404
 from django.http import HttpResponseRedirect, JsonResponse, HttpResponseNotAllowed, HttpRequest, HttpResponseForbidden, HttpResponse, HttpResponseNotFound, HttpResponseBadRequest, HttpResponsePermanentRedirect, FileResponse
 from django.core import serializers
-from django.db.models import Model, Q
+from django.db.models import Model, Q, Count
 from django.utils import timezone
 from django.db import transaction
 from django.views.decorators.cache import cache_page
@@ -683,6 +683,15 @@ def tmx_uid_to_tid_map(request):
     for m in maps:
         ret.append([m.TrackID, m.TrackUID])
     return JsonResponse(ret, safe=False)
+
+
+def debug_nb_track_types(request):
+    stats = TmxMap.objects.values('MapType').annotate(
+        count=Count('id')
+    ).order_by('count')
+    return JsonResponse(list(stats), safe=False)
+
+
 
 
 def get_requests_query_tags(request):

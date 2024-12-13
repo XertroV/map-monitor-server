@@ -46,6 +46,7 @@ urlpatterns = [
     path(f'tmx/track_ids_to_uid', views.track_ids_to_uid),
     path(f'tmx/uid_to_tid_map', views.tmx_uid_to_tid_map),
     # path(f'debug/nb_dup_tids', views.debug_nb_dup_tids),
+    path(f'debug/nb_track_types', views.debug_nb_track_types),
 
     path(f'e++/icons/convert/webp', views.convert_webp_to_png),
     path(f'e++/icons/convert/rgba', views.convert_rgba_to_png),
