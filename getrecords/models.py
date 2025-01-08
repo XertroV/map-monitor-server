@@ -170,6 +170,8 @@ class TmxMap(models.Model):
             kwargs['LengthSecs'] = LengthSecs
             kwargs['LengthName'] = LengthName
 
+            kwargs['RatingVoteCount'] = 0 if 'RatingVoteCount' not in kwargs else kwargs['RatingVoteCount']
+
         super().__init__(*args, **kwargs)
 
     @staticmethod
