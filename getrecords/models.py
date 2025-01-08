@@ -79,7 +79,7 @@ class TmxMapScrapeState(models.Model):
     LastScraped: int = models.IntegerField()
 
 
-TMX_MAP_REMOVE_KEYS = ['Lightmap', 'UnlimiterRequired', 'MappackID', 'HasGhostBlocks', 'EmbeddedObjectsCount', 'EmbeddedItemsSize', 'AuthorCount', 'SizeWarning', 'CommentCount', 'ReplayCount', 'VideoCount']
+TMX_MAP_REMOVE_KEYS = ['Lightmap', 'UnlimiterRequired', 'MappackID', 'HasGhostBlocks', 'EmbeddedObjectsCount', 'EmbeddedItemsSize', 'AuthorCount', 'SizeWarning', 'CommentCount', 'ReplayCount', 'VideoCount', 'Length', 'Type', 'Environment', 'Vehicle', 'Routes', 'Difficulty', 'ActivityAt', 'ReplayType', 'UserRecord']
 
 
 class TmxMap(models.Model):
