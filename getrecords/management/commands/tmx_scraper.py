@@ -100,7 +100,7 @@ async def run_tmx_scraper(state: TmxMapScrapeState, update_state: TmxMapScrapeSt
             if first_run:
                 first_run = False
                 logging.info(f"First run: cache_recently_beaten_ats")
-                await update_unbeaten_ats_map_pack_s2()
+                # await update_unbeaten_ats_map_pack_s2()
             # await fix_tmx_records()
             if LOCAL_DEV_MODE:
                 logging.info(f"Local dev: cache_recently_beaten_ats")
@@ -118,7 +118,7 @@ async def run_tmx_scraper(state: TmxMapScrapeState, update_state: TmxMapScrapeSt
             await cache_unbeaten_ats()
             await cache_recently_beaten_ats()
             await cache_map_uids()
-            await update_unbeaten_ats_map_pack_s2()
+            # await update_unbeaten_ats_map_pack_s2()
             await update_tmx_tags_cached()
             sduration = max(0, loop_seconds - (time.time() - start))
             logging.info(f"txm scraper sleeping for {sduration}s")
