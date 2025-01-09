@@ -116,8 +116,8 @@ class TmxMap(models.Model):
     Downloadable: bool = models.BooleanField()
     Unlisted: bool = models.BooleanField()
     Unreleased: bool = models.BooleanField()
-    RatingVoteCount: int = models.IntegerField()
-    RatingVoteAverage: float = models.FloatField()
+    RatingVoteCount: int = models.IntegerField(null=True)
+    RatingVoteAverage: float = models.FloatField(null=True)
     VehicleName: str = models.CharField(max_length=32)
     EnvironmentName: str = models.CharField(max_length=32)
     HasScreenshot: bool = models.BooleanField()
@@ -171,6 +171,7 @@ class TmxMap(models.Model):
             kwargs['LengthName'] = LengthName
 
             kwargs['RatingVoteCount'] = 0 if 'RatingVoteCount' not in kwargs else kwargs['RatingVoteCount']
+            kwargs['RatingVoteAverage'] = 0 if 'RatingVoteAverage' not in kwargs else kwargs['RatingVoteAverage']
 
         super().__init__(*args, **kwargs)
 
