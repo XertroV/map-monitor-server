@@ -565,23 +565,26 @@ def mapsearch2_inner(request):
 
     state = get_scrape_state()
 
-    batch_size = 20
+    batch_size = 100
     count = 0
     last_track = None
     # now the random part
-    while count < 2000:
+    while count < 20000:
         count += batch_size
         rand_tids = list(random.randint(1, state.LastScraped + 1) for _ in range(batch_size))
         q_dict = dict(TrackID__in=rand_tids)
-        if author is not None: q_dict = dict(Username__iexact=author)
+        if author is not None:
+            q_dict = dict(Username__iexact=author)
+        if len(include_tags) > 0:
+            q_dict['Tags__contains'] = reduce(operator.or_, [f"{t}" for t in include_tags])
         tracks: list[TmxMap] = TmxMap.objects.filter(**q_dict).all()
         resp_tids: list[int] = [t.TrackID for t in tracks]
         if author is not None:
             rand_tids = clone_and_shuffle(resp_tids)
             if len(rand_tids) == 0:
                 return HttpResponseNotFound(f"No maps found for author: {author}")
-        print(f"Searched: {rand_tids}")
-        print(f"search got tracks: {len(tracks)} / {resp_tids}")
+        # print(f"Searched: {rand_tids}")
+        # print(f"search got tracks: {len(tracks)} / {resp_tids}")
         no_track = []
         no_match = []
         for tid in rand_tids:
@@ -606,7 +609,7 @@ def mapsearch2_inner(request):
                 # logging.info(f"Track did not match: {track.TrackID}")
                 no_match.append(track.TrackID)
                 continue
-            logging.info(f"Found track: {track.TrackID} / not found: {no_track} / no match: {no_match}")
+            logging.info(f"Found track: {track.TrackID} / not found: {len(no_track)} / no match: {len(no_match)}")
             return JsonResponse({'results': [model_to_dict(track)], 'totalItemCount': 1})
         # track.Tags
     if last_track is not None:
