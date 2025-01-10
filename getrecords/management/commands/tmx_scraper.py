@@ -628,14 +628,18 @@ async def run_check_tmx_unbeaten_removed_updated():
         tids.append(mapAT.Track.TrackID)
         tid_to_mapAT[mapAT.Track.TrackID] = mapAT
 
-    for _batch_ids in chunk(tids, 30):
+    # errors above 20
+    for _batch_ids in chunk(tids, 20):
         batch_ids = list(_batch_ids)
-        # logging.info(f"run_check_tmx_unbeaten_removed_updated: {len(batch_ids)}")
+        logging.info(f"run_check_tmx_unbeaten_removed_updated: {len(batch_ids)}")
         batch_resp = await get_maps_from_tmx(batch_ids)
         resp_ids = [t['TrackID'] for t in batch_resp]
         removed = set(batch_ids) - set(resp_ids)
         if len(removed) > 0:
             logging.info(f"Marking {len(removed)} mapAT records removed from TMX")
+        if len(removed) == len(batch_ids):
+            logging.warning(f"BUG - all maps in batch removed from TMX; not removing")
+            removed = set()
         for tid in removed:
             tid_to_mapAT[tid].RemovedFromTmx = True
             await tid_to_mapAT[tid].asave()
@@ -695,6 +699,8 @@ async def fix_tmx_records():
 
 
 async def update_unbeatable_maps_list():
+    '''currently broken tmx2.0'''
+    return
     global TMXIDS_UNBEATABLE_ATS
     try:
         logging.info(f"Updating unbeatable ATs (pre len: {len(TMXIDS_UNBEATABLE_ATS)})")
