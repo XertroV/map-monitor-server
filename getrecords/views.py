@@ -609,7 +609,7 @@ def mapsearch2_inner(request):
                 # logging.info(f"Track did not match: {track.TrackID}")
                 no_match.append(track.TrackID)
                 continue
-            logging.info(f"Found track: {track.TrackID} / not found: {len(no_track)} / no match: {len(no_match)}")
+            logging.info(f"Found track: {track.TrackID} / not found: {len(no_track)} / no match: {len(no_match)} / count: {count}")
             return JsonResponse({'results': [model_to_dict(track)], 'totalItemCount': 1})
         # track.Tags
     if last_track is not None:
