@@ -182,13 +182,13 @@ class TmxMap(models.Model):
                 del kwargs[k]
         # also sanitize some fields
         tid = kwargs['TrackID']
-        if (len(kwargs['Name']) >= 128):
+        if (len(kwargs['Name'])) >= 128:
             kwargs['Name'] = kwargs['Name'][:128]
             logging.info(f"Trimmed Name on map {tid}: {kwargs['Name']}")
-        if (len(kwargs['GbxMapName']) >= 128):
+        if (len(kwargs['GbxMapName'])) >= 128:
             kwargs['GbxMapName'] = kwargs['GbxMapName'][:128]
             logging.info(f"Trimmed GbxMapName on map {tid}: {kwargs['GbxMapName']}")
-        if (len(kwargs.get('ModName', '')) >= 128):
+        if (len(kwargs.get('ModName', '') or '')) >= 128:
             kwargs['ModName'] = kwargs['ModName'][:128]
             logging.info(f"Trimmed ModName on map {tid}: {kwargs['ModName']}")
 
