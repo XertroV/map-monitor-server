@@ -180,6 +180,17 @@ class TmxMap(models.Model):
         for k in TMX_MAP_REMOVE_KEYS:
             if k in kwargs:
                 del kwargs[k]
+        # also sanitize some fields
+        tid = kwargs['TrackID']
+        if (len(kwargs['Name'])):
+            kwargs['Name'] = kwargs['Name'][:128]
+            logging.info(f"Trimmed Name on map {tid}: {kwargs['Name']}")
+        if (len(kwargs['GbxMapName'])):
+            kwargs['GbxMapName'] = kwargs['GbxMapName'][:128]
+            logging.info(f"Trimmed GbxMapName on map {tid}: {kwargs['GbxMapName']}")
+        if (len(kwargs['ModName'])):
+            kwargs['ModName'] = kwargs['ModName'][:128]
+            logging.info(f"Trimmed ModName on map {tid}: {kwargs['ModName']}")
 
 
 
