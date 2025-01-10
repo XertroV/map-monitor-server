@@ -549,15 +549,15 @@ def mapsearch2_inner(request):
         tags = request.GET.get('tags', '')
         include_tags: list[int] = []
         if len(tags) > 0:
-            include_tags = list(map(int, request.GET.get('tags', '').split(",")))
+            include_tags = list(map(lambda x: int(x or '0'), request.GET.get('tags', '').split(",")))
         require_all_tags = request.GET.get('tagsinc', '0') == '1'
         etags = request.GET.get('etags', '')
         exclude_tags: list[int] = []
         if len(etags) > 0:
-            exclude_tags = list(map(int, request.GET.get('etags', '').split(",")))
-        length_op = int(request.GET.get('lengthop', '0'))
-        length = int(request.GET.get('length', '0'))
-        vehicles: list[int] = [int(x.strip()) for x in request.GET.get('vehicles', '0').split(',')]
+            exclude_tags = list(map(lambda x: int(x or '0'), request.GET.get('etags', '').split(",")))
+        length_op = int(request.GET.get('lengthop', '0') or '0')
+        length = int(request.GET.get('length', '0') or '0')
+        vehicles: list[int] = [int(x.strip() or '0') for x in request.GET.get('vehicles', '0').split(',')]
         mtype = request.GET.get('mtype', '')
         author = request.GET.get('author', None)
     except Exception as e:
