@@ -537,6 +537,7 @@ def tmx_compat_mapsearch2(request: HttpRequest):
             return mapsearch2_inner(request)
         except Exception as e:
             logging.error(f"Exception in mapsearch2: {e}")
+            # raise e
     return HttpResponseRedirect(f"https://trackmania.exchange{request.get_full_path()}")
 
 
@@ -575,9 +576,10 @@ def mapsearch2_inner(request):
         q_dict = dict(TrackID__in=rand_tids)
         if author is not None:
             q_dict = dict(Username__iexact=author)
+        query = TmxMap.objects.filter(**q_dict)
         if len(include_tags) > 0:
-            q_dict['Tags__contains'] = reduce(operator.or_, [f"{t}" for t in include_tags])
-        tracks: list[TmxMap] = TmxMap.objects.filter(**q_dict).all()
+            query = query.filter(reduce(operator.or_, (Q(Tags__contains=f"{t}") for t in include_tags)))
+        tracks: list[TmxMap] = query.all()
         resp_tids: list[int] = [t.TrackID for t in tracks]
         if author is not None:
             rand_tids = clone_and_shuffle(resp_tids)
