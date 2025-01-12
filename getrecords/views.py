@@ -551,7 +551,7 @@ def mapsearch2_inner(request):
         include_tags: list[int] = []
         if len(tags) > 0:
             include_tags = list(map(lambda x: int(x or '0'), request.GET.get('tags', '').split(",")))
-        require_all_tags = request.GET.get('tagsinc', '0') == '1'
+        require_all_tags = request.GET.get('tagsinc', '0') == '1' and len(include_tags) <= 3
         etags = request.GET.get('etags', '')
         exclude_tags: list[int] = []
         if len(etags) > 0:
