@@ -578,7 +578,7 @@ def mapsearch2_inner(request):
             q_dict = dict(Username__iexact=author)
         query = TmxMap.objects.filter(**q_dict)
         if len(include_tags) > 0:
-            query = query.filter(reduce(operator.or_, (Q(Tags__contains=f"{t}") for t in include_tags)))
+            query = query.filter(reduce(operator.and_ if require_all_tags else operator.or_, (Q(Tags__contains=f"{t}") for t in include_tags)))
         tracks: list[TmxMap] = query.all()
         resp_tids: list[int] = [t.TrackID for t in tracks]
         if author is not None:
@@ -616,7 +616,7 @@ def mapsearch2_inner(request):
         # track.Tags
     if last_track is not None:
         return JsonResponse({'results': [model_to_dict(last_track)], 'totalItemCount': 1})
-    return HttpResponseNotFound("Searched 2k maps but did not find a map")
+    return HttpResponseNotFound("Searched 20k maps but did not find a map")
 
 
 def clone_and_shuffle(xs: list) -> list:
