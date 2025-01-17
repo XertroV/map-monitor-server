@@ -542,6 +542,7 @@ def tmx_compat_mapsearch2(request: HttpRequest):
 
 
 def mapsearch2_inner(request):
+    start_t = time.time()
     if request.method != "GET": return HttpResponseNotAllowed(['GET'])
     try:
         is_random = request.GET.get('random', '0') == '1'
@@ -611,9 +612,13 @@ def mapsearch2_inner(request):
                 # logging.info(f"Track did not match: {track.TrackID}")
                 no_match.append(track.TrackID)
                 continue
+            dur = time.time() - start_t
+            logging.info(f"mapsearch2 took {dur:.4f} seconds")
             logging.info(f"Found track: {track.TrackID} / not found: {len(no_track)} / no match: {len(no_match)} / count: {count}")
             return JsonResponse({'results': [model_to_dict(track)], 'totalItemCount': 1})
         # track.Tags
+    dur = time.time() - start_t
+    logging.info(f"mapsearch2 took {dur:.4f} seconds")
     if last_track is not None:
         return JsonResponse({'results': [model_to_dict(last_track)], 'totalItemCount': 1})
     return HttpResponseNotFound("Searched 20k maps but did not find a map")
