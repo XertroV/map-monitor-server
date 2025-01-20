@@ -24,7 +24,7 @@ from django.utils import timezone
 from django.db import transaction
 from django.views.decorators.cache import cache_page
 
-from getrecords.http import get_session, http_head_okay
+from getrecords.http import get_session, http_head_okay, get_req_sync
 from getrecords.management.commands.tmx_scraper import get_scrape_state
 from getrecords.openplanet import ARCHIVIST_PLUGIN_ID, MAP_MONITOR_PLUGIN_ID, TokenResp, check_token, sha_256
 from getrecords.rmc_exclusions import EXCLUDE_FROM_RMC
@@ -957,3 +957,25 @@ def process_lm_file(name: str, zf: zipfile.ZipFile) -> BytesIO | None:
     bs = BytesIO()
     im.save(bs, "png")
     return bs
+
+
+def convert_tmx_webp_thumbnail(request: HttpRequest):
+    if (request.method != "POST"): return HttpResponseNotAllowed(['POST'])
+    if len(request.body) > 1000: return HttpResponseBadRequest("how long is that url?!?!??!")
+    url = request.body.decode('utf-8')
+    bad_ret = url_looks_like_tmx_image(url)
+    if bad_ret is not None: return bad_ret
+    img_bytes = get_req_sync(url)
+    im = Image.open(BytesIO(img_bytes), formats=['webp'])
+    bs = BytesIO()
+    im.save(bs, "png", optimize=True)
+    bs.seek(0)
+    return FileResponse(bs)
+
+
+def url_looks_like_tmx_image(url: str) -> bool:
+    if not url.startswith("https://"): return HttpResponseBadRequest("URL must be https")
+    url_after_protocol = url[8:]
+    path_parts = url_after_protocol.split('/')
+    if not path_parts[0].ends_with("mania.exchange"): return HttpResponseBadRequest("URL must be at MX domain")
+    return None

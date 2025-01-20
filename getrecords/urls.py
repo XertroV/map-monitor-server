@@ -51,4 +51,6 @@ urlpatterns = [
     path(f'e++/icons/convert/webp', views.convert_webp_to_png),
     path(f'e++/icons/convert/rgba', views.convert_rgba_to_png),
     path(f'e++/lm-analysis/convert/webp', views.lm_conversion_req),
+
+    path(f'tmx/convert_webp', views.convert_tmx_webp_thumbnail),
 ]

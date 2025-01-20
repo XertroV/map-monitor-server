@@ -17,3 +17,11 @@ async def http_head_okay_async(url):
                 return resp.status == 200
     except Exception as e:
         return False
+
+async def get_req_bytes(url):
+    async with get_session() as s:
+        async with await s.get(url) as resp:
+            return await resp.read()
+
+def get_req_sync(url):
+    return run_async(get_req_bytes(url))
