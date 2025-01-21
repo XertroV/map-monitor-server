@@ -977,5 +977,5 @@ def url_looks_like_tmx_image(url: str) -> bool:
     if not url.startswith("https://"): return HttpResponseBadRequest("URL must be https")
     url_after_protocol = url[8:]
     path_parts = url_after_protocol.split('/')
-    if not path_parts[0].ends_with("mania.exchange"): return HttpResponseBadRequest("URL must be at MX domain")
+    if not path_parts[0].endswith("mania.exchange"): return HttpResponseBadRequest("URL must be at MX domain")
     return None
