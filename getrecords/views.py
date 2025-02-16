@@ -729,7 +729,11 @@ def tags_to_names(tags: list[int]) -> list[str]:
 
 
 def tmx_next_map_Track_to_dict(next_map: TmxMap, req_tags: list[int] | None) -> dict | None:
-    map_tags = list(map(int, (next_map.Tags or "").split(',')))
+    map_tags = []
+    try:
+        map_tags = list(map(int, (next_map.Tags or "").split(',')))
+    except ValueError as e:
+        logging.warning(f"Failed to parse map_tags: {e}")
     if req_tags is None or len(req_tags) == 0 or any(t in map_tags for t in req_tags):
         return dict(next=next_map.TrackID, next_uid=next_map.TrackUID, tags=map_tags, tag_names=tags_to_names(map_tags), name=next_map.Name, author=next_map.Username, type=next_map.MapType)
     return None
