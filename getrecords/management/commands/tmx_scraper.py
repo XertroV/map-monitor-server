@@ -208,7 +208,7 @@ async def get_updated_maps(page: int):
                 if resp.status == 200:
                     return await resp.json()
                 else:
-                    raise Exception(f"Could not get map infos by last updated: {resp.status} code.")
+                    raise Exception(f"Could not get map infos by last updated: {resp.status} code. limit: {tmx_limit}, page: {page}")
         except asyncio.TimeoutError as e:
             raise Exception(f"TMX timeout for searching maps recently updated")
 
