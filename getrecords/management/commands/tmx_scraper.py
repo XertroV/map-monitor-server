@@ -149,6 +149,7 @@ async def scrape_update_range(update_state: TmxMapScrapeState):
     down_to = update_state.LastScraped
     page = 1
     updated = list()
+
     while oldest_update > down_to:
         resp = await get_updated_maps(page, updated[-1] if len(updated) > 0 else None)
         maps_page = resp['Results']

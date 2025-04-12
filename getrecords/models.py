@@ -531,7 +531,7 @@ def tmx_v2_track_to_v1(j2: dict):
     j1['MapType'] = j2.get('MapType', None)
     j1['TitlePack'] = j2.get('TitlePack', None) or ''
     j1['TrackUID'] = j2.get('MapUid', None)
-    j1['Mood'] = j2.get('MoodFull', "")
+    j1['Mood'] = j2.get('MoodFull', "") or ''
     j1['DisplayCost'] = 0
     j1['ModName'] = None
     j1['Lightmap'] = 0
