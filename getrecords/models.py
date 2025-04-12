@@ -314,3 +314,272 @@ class TmxMapPackTrackUpdateLog(models.Model):
     last_updated: float = models.FloatField(default=0, db_index=True)
     class Meta:
         unique_together = [('TrackID', 'PackID')]
+
+
+
+
+#
+# TMX V2 map fields to TMX V1 map fields
+#
+
+'''
+old format:
+
+      {
+         "TrackID":19387,
+         "UserID":27144,
+         "Username":"htimh1",
+         "GbxMapName":"MIDNIGHT METROPOLIS",
+         "AuthorLogin":"FE_OBpuQSvmlsJFIvMBWbw",
+         "MapType":"TM_Race",
+         "TitlePack":"Trackmania",
+         "TrackUID":"QleO8OiNAkIXrZs6r0YLSrLBjEi",
+         "Mood":"48x48Night",
+         "DisplayCost":33603,
+         "ModName":"",
+         "Lightmap":8,
+         "ExeVersion":"3.3.0",
+         "ExeBuild":"2020-10-09_10_58",
+         "AuthorTime":55910,
+         "ParserVersion":1,
+         "UploadedAt":"2020-10-28T18:44:42.18",
+         "UpdatedAt":"2020-10-28T18:44:42.18",
+         "Name":"MIDNIGHT METROPOLIS",
+         "Tags":"3,7,22",
+         "TypeName":"Script",
+         "StyleName":"Scenery",
+         "EnvironmentName":"Stadium",
+         "VehicleName":"CarSport",
+         "UnlimiterRequired":false,
+         "RouteName":"Single",
+         "LengthName":"1 min",
+         "DifficultyName":"Intermediate",
+         "Laps":1,
+         "ReplayWRID":17673,
+         "ReplayWRTime":54193,
+         "ReplayWRUserID":22215,
+         "ReplayWRUsername":"Insanity",
+         "TrackValue":605,
+         "Comments":"...",
+         "MappackID":0,
+         "Unlisted":false,
+         "Unreleased":false,
+         "Downloadable":true,
+         "RatingVoteCount":0,
+         "RatingVoteAverage":0.0,
+         "HasScreenshot":true,
+         "HasThumbnail":true,
+         "HasGhostBlocks":false,
+         "EmbeddedObjectsCount":181,
+         "EmbeddedItemsSize":1493546,
+         "IsMP4":true,
+         "SizeWarning":false,
+         "AwardCount":236,
+         "CommentCount":53,
+         "ReplayCount":36,
+         "ImageCount":4,
+         "VideoCount":1
+      },
+
+new format:
+
+
+{
+    "MapId":170211,
+    "MapUid":"IhKmjHBxSQGbT9ivnFHQDA",
+    "OnlineMapId":"a282e3f9-5585-4edf-9db1-c370ff1190d9",
+    "Name":"Deep Dip 2",
+    "GbxMapName":"Deep Dip 2",
+    "UploadedAt":"2024-05-03T18:48:16.15",
+    "UpdatedAt":"2024-05-11T09:27:54.767",
+    "ActivityAt":"2024-09-28T20:27:27.503",
+    "Uploader":{
+       "UserId":20547,
+       "Name":"SparklingW"
+    },
+    "Authors":[
+       {
+          "User":{
+             "UserId":20547,
+             "Name":"SparklingW"
+          },
+          "Role":""
+       },
+       ...
+    ],
+    "Tags":[
+       {
+          "TagId":4,
+          "Name":"RPG",
+          "Color":""
+       },
+       ...
+    ],
+    "Images":[
+       {
+          "Position":1,
+          "Width":0,
+          "Height":0,
+          "HasHighQuality":true
+       }
+    ],
+    "Type":0,
+    "MapType": "TM_Race",
+    "Environment":1,
+    "Vehicle":1,
+    "Mood":"Day",
+    "MoodFull":"48x48Day",
+    "Style":0,
+    "Routes":0,
+    "Difficulty":4,
+    "Medals":{
+       "Author":3272100,
+       "Gold":3469000,
+       "Silver":3927000,
+       "Bronze":4909000
+    },
+    "CustomLength":null,
+    "Length":3272100,
+    "AwardCount":402,
+    "CommentCount":33,
+    "DownloadCount":18253,
+    "ReplayCount":0,
+    "ReplayType":0,
+    "ReplayWRID":null,
+    "TrackValue":0,
+    "OnlineWR":{
+       "AccountId":"BD45204C-80F1-4809-B983-38B3F0FFC1EF",
+       "DisplayName":"WirtualTM",
+       "RecordTime":2236032,
+       "User":{
+          "UserId":17372,
+          "Name":"Wirtual"
+       }
+    },
+    "TitlePack":"TMStadium",
+    "Feature":null,
+    "UserOnlineRecord":null,
+    "UserRecord":null,
+    "ReplayWR":null,
+    "HasThumbnail":true,
+    "HasImages": true,
+    "IsPublic":true,
+    "IsListed":true,
+    "ServerSizeExceeded":false
+ }
+
+v2 output params:
+MapId 		Int64 	Primary Key of the Map entry
+MapUid 		String 	Map Gbx Uid
+OnlineMapId 	question_mark 	String 	If found on the TM API, that's the map UUID, see here
+Uploader 		Object 	Uploader info
+Authors 		Object[] 	The Map Authors. Role is user-defined.
+Type 		Enum 	The Map Type, used for internal purposes
+MapType 		String 	The Maptype set in the Map Gbx, substring from last /
+Environment 		Enum 	The Environment of the Map
+Vehicle 		Enum 	The Vehicle set in the Map Gbx
+VehicleName 		String 	Name of the Vehicle, see Get Map Vehicles
+Mood 		Enum 	The base mood of the map
+MoodFull 		String 	The original mood of the Map Gbx
+Style 		Int32 	TagId of the first selected Tag in Tags, see Get Tags
+Routes 		Enum 	The routes set by the uploader
+Difficulty 		Enum 	The difficulty of the map set by the uploader
+AwardCount 		Int32 	Count of Awards on the site
+CommentCount 		Int32 	Count of Comments on the site
+UploadedAt 		DateTime 	Upload time (UTC)
+UpdatedAt 		DateTime 	Last update time of map page (UTC)
+ActivityAt 	question_mark 	DateTime 	Last activity (replay, comment, award posted) date on the Map
+ReplayType 		Enum 	The leaderboard type of the map on the site
+TrackValue 		Int32 	Max. score of the map to be gained & competitiveness indicator
+OnlineWR 	question_mark 	Object 	(TMX only) Online World Record data
+OnlineWR.AccountId 		String 	Primary account id of TM player, see here
+OnlineWR.DisplayName 		String 	Ingame display name of player
+OnlineWR.RecordTime 		Int32 	RecordTime in milliseconds or stunt score in pt
+OnlineWR.User 	question_mark 	Object 	TMX user associated to player, if available
+ReplayCount 		Int32 	Count of Replays uploaded to Map
+Titlepack 		String 	Name of TitlePack specified in Map Gbx (substring until @)
+DownloadCount 		Int32 	Count of total downloads of map on the site
+CustomLength 	question_mark 	Int32 	Optional, custom length of Map defined by user (in case AT is inaccurate) - this is always in milliseconds
+Length 		Int32 	Auto-selected: CustomLength, if defined, otherwise Medals.Author
+Tags 		Object[] 	The Tags assigned for the Map, see Get Tags
+Images 		Object[] 	The uploaded custom images for the Map. Position can be used for the Map Image endpoint.
+Medals 		Object 	Map Gbx scores (pt / respawns) or times (ms) depending on Type
+HasThumbnail 		Boolean 	The Map has the Gbx thumbnail uploaded, see Map Thumbnail method
+HasImages 		Boolean 	The map has at least one custom image uploaded
+IsPublic 		Boolean 	Map is published. Relevant for logged-in users.
+IsListed 		Boolean 	true: Map can be discovered, if IsPublic is true - false: Map can only be found by the Authors or by providing a key
+Feature.Comment 	question_mark 	String 	Comment of frontpage feature, if it exists
+Feature.Pinned 	question_mark 	Boolean 	Map is pinned in the frontpage features, if it is featured
+InBookmarks 		Boolean 	(Login required) Map is in logged-in user's Play Later list
+TimeStampAt 	question_mark 	Int32 	Requires videoid parameter - Timestamp of map in the video
+Mappack.MappackId 		Int64 	Requires mappackid parameter - Mappack Id
+Mappack.MapStatus 		Enum 	Requires mappackid parameter - Status of Map in specified Mappack
+Mappack.MapPosition 		Int32 	Requires mappackid parameter - Position of Map in specified Mappack
+GbxMapName 	question_mark 	String 	The formatted ingame from the Gbx file
+ServerSizeExceeded 		Boolean 	Server max size limit is exceeded (TM2: 4,194,304, TM: 7,336,960)
+
+'''
+
+def tmx_v2_track_to_v1(j2: dict):
+    j1 = dict()
+    j1['TrackID'] = j2.get('MapId', None)
+    j1['GbxMapName'] = j2.get('GbxMapName', None)
+    uploader = j2.get('Uploader', dict())
+    j1['UserID'] = uploader.get('UserId', None)
+    j1['Username'] = uploader.get('Name', None)
+    j1['AuthorLogin'] = "Unknown"
+    j1['MapType'] = j2.get('MapType', None)
+    j1['TitlePack'] = j2.get('TitlePack', None) or ''
+    j1['TrackUID'] = j2.get('MapUid', None)
+    j1['Mood'] = j2.get('MoodFull', "")
+    j1['DisplayCost'] = 0
+    j1['ModName'] = None
+    j1['Lightmap'] = 0
+    j1['ExeVersion'] = j2.get('ExeVersion', '?')
+    j1['ExeBuild'] = None or '?'
+    j1['AuthorTime'] = j2.get('Medals', dict()).get('Author', -1)
+    j1['ParserVersion'] = 1
+    j1['UploadedAt'] = j2.get('UploadedAt', None)
+    j1['UpdatedAt'] = j2.get('UpdatedAt', None)
+    j1['Name'] = j2.get('Name', None)
+    tags = j2['Tags']
+    j1['Tags'] = ",".join([str(t["TagId"]) for t in tags])
+    j1['TypeName'] = None or ''
+    j1['StyleName'] = None or ''
+    j1['EnvironmentName'] = j2.get('Environment', None)
+    j1['VehicleName'] = j2.get('VehicleName', "CarSport")
+    j1['UnlimiterRequired'] = False
+    j1['RouteName'] = str(j2.get('Routes', None))
+    if 'CustomLength' in j2 and j2['CustomLength'] is None:
+        del j2['CustomLength']
+    j1['LengthSecs'] = j2.get('CustomLength', j2.get('Length', -1)) // 1000
+    if j1['LengthSecs'] < 0: j1['LengthSecs'] = max(j1['AuthorTime'] // 1000, -1)
+    j1['LengthName'] = '2 m 30 s'
+    j1['DifficultyName'] = int_to_difficulty(j2.get('Difficulty'))
+    j1['Laps'] = 1
+    j1['ReplayWRID'] = j2.get('ReplayWRID', None)
+    j1['ReplayWRTime'] = j2.get('ReplayWR', dict()).get('RecordTime', None)
+    j1['ReplayWRUserID'] = j2.get('ReplayWR', dict()).get('UserId', None)
+    j1['ReplayWRUsername'] = j2.get('ReplayWR', dict()).get('DisplayName', None)
+    j1['TrackValue'] = j2.get('TrackValue', 0)
+    j1['AwardCount'] = j2.get('AwardCount', 0)
+    j1['Comments'] = None or ''
+    j1['MappackID'] = 0
+    j1['Unlisted'] = j2.get('IsPublic', False)
+    j1['Unreleased'] = False
+    j1['Downloadable'] = True
+    j1['RatingVoteCount'] = 0
+    j1['RatingVoteAverage'] = 0.0
+    j1['HasScreenshot'] = j2.get('HasThumbnail', False)
+    j1['HasThumbnail'] = j2.get('HasImages', False)
+    j1['HasGhostBlocks'] = False
+    j1['EmbeddedObjectsCount'] = 0
+    j1['EmbeddedItemsSize'] = 0
+    j1['IsMP4'] = False
+    j1['SizeWarning'] = False
+    j1['AwardCount'] = j2.get('AwardCount', 0)
+    j1['CommentCount'] = j2.get('CommentCount', 0)
+    j1['ReplayCount'] = j2.get('ReplayCount', 0)
+    j1['ImageCount'] = 0
+    j1['VideoCount'] = 0
+    return j1

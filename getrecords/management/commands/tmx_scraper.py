@@ -10,7 +10,7 @@ from django.core.management.base import BaseCommand, CommandError
 
 from getrecords.http import get_session
 from getrecords.kacky import check_kacky_results_loop
-from getrecords.models import CachedValue, MapTotalPlayers, TmxMap, TmxMapAT, TmxMapScrapeState, TmxMapPackTrackUpdateLog
+from getrecords.models import CachedValue, MapTotalPlayers, TmxMap, TmxMapAT, TmxMapScrapeState, TmxMapPackTrackUpdateLog, tmx_v2_track_to_v1
 from getrecords.nadeoapi import LOCAL_DEV_MODE, TMX_MAPPACK_UNBEATEN_ATS_APIKEY, TMX_MAPPACK_UNBEATEN_ATS_S3_APIKEY, get_map_records, run_nadeo_services_auth
 from getrecords.tmx_maps import tmx_date_to_ts, update_tmx_tags_cached
 from getrecords.unbeaten_ats import TMX_MAPPACKID_UNBEATABLE_ATS, TMXIDS_UNBEATABLE_ATS
@@ -102,7 +102,7 @@ async def run_tmx_scraper(state: TmxMapScrapeState, update_state: TmxMapScrapeSt
                 logging.info(f"First run: cache_recently_beaten_ats")
                 # await update_unbeaten_ats_map_pack_s2()
             # await fix_tmx_records()
-            if LOCAL_DEV_MODE:
+            if False and LOCAL_DEV_MODE:
                 logging.info(f"Local dev: cache_recently_beaten_ats")
                 await cache_recently_beaten_ats()
                 logging.info(f"Local dev: cache_map_uids")
@@ -150,19 +150,23 @@ async def scrape_update_range(update_state: TmxMapScrapeState):
     page = 1
     updated = list()
     while oldest_update > down_to:
-        resp = await get_updated_maps(page)
-        maps_page = resp['results']
+        resp = await get_updated_maps(page, updated[-1] if len(updated) > 0 else None)
+        maps_page = resp['Results']
         if len(maps_page) == 0:
             logging.warn(f"Got no more maps to update: page: {page}, oldest_update: {oldest_update}, down_to: {down_to}")
             break
-        total_items = resp['totalItemCount']
         logging.info(f"scrape update range: page: {page}, oldest_update: {oldest_update}, down_to: {down_to}")
         for track in maps_page:
             oldest_update = tmx_date_to_ts(track['UpdatedAt'])
-            if tmx_date_to_ts(track['UpdatedAt']) < down_to:
+            if oldest_update < down_to:
                 break
-            await update_tmx_map(track)
-            updated.append(track['TrackID'])
+            try:
+                await update_tmx_map(tmx_v2_track_to_v1(track))
+            except Exception as e:
+                print(f"Failed to update map: {track['MapId']}: {e}")
+                print(f"Map: {track}")
+                raise e
+            updated.append(track['MapId'])
         # oldest_map = maps_page[-1]
         page += 1
         await asyncio.sleep(.8)
@@ -171,6 +175,22 @@ async def scrape_update_range(update_state: TmxMapScrapeState):
     update_state.LastScraped = max_time
     await update_state.asave()
 
+# async def _add_maps_from_json(j: dict):
+#     if 'Results' not in j:
+#         raise Exception(f"Response didn't contain .Results")
+#     maps_j = j['Results']
+#     track_ids = list()
+#     for map_j in maps_j:
+#         track_id = map_j['MapID']
+#         track_ids.append(track_id)
+#         map_j_2to1 = tmx_v2_track_to_v1(map_j)
+#         try:
+#             await update_tmx_map(map_j_2to1)
+#         except Exception as e:
+#             logging.warn(f"Failed to save map: \n v1: {map_j_2to1}\n v2: {map_j} -- exception: {e}")
+#             raise e
+#         # logging.info(f"Saved tmx map: {track_id}")
+#     logging.info(f"Saved tmx maps: {track_ids}")
 
 
 TMX_SEARCH_API_URL = "https://trackmania.exchange/mapsearch2/search?api=on"
@@ -184,6 +204,7 @@ async def get_latest_map_id() -> int:
             else:
                 raise Exception(f"Could not get latest maps: {resp.status} code")
 
+# get particular maps (used for sequential scraping)
 async def update_maps_from_tmx(tids_or_uids: list[int | str]):
     tids_str = ','.join(map(str, tids_or_uids))
     async with get_session() as session:
@@ -200,19 +221,28 @@ async def update_maps_from_tmx(tids_or_uids: list[int | str]):
 # priord: https://api2.mania.exchange/Enum/Index/6
 # newest=2 (default), last updated=4
 
-async def get_updated_maps(page: int):
+# ! Not actually *all* of them.
+ALL_TMX2_FIELDS = "ExeVersion,TitlePack,Name,MapId,MapUid,OnlineMapId,Uploader.UserId,Uploader.Name,Medals.Author,Medals.Gold,Medals.Silver,Medals.Bronze,Authors,Type,MapType,Environment,Vehicle,VehicleName,Mood,MoodFull,Style,Routes,Difficulty,AwardCount,CommentCount,UploadedAt,UpdatedAt,ActivityAt,ReplayType,TrackValue,OnlineWR,OnlineWR,OnlineWR,OnlineWR,OnlineWR,ReplayCount,DownloadCount,CustomLength,Length,Tags,Images,HasThumbnail,HasImages,IsPublic,IsListed,GbxMapName,ServerSizeExceeded"
+TMX_RECENTLY_UPDATED_MAPS_API_URL = f"https://trackmania.exchange/api/maps?order1=8&fields={ALL_TMX2_FIELDS}"
+
+# called from scraping update func: scrape_update_range
+async def get_updated_maps(page: int, after_map_id: int | None = None):
     tmx_limit = 100
     async with get_session() as session:
         try:
-            async with session.get(TMX_SEARCH_API_URL + f"&limit={tmx_limit}&page={page}&priord=4", timeout=10.0) as resp:
+            # OLD: TMX_SEARCH_API_URL + f"&limit={tmx_limit}&page={page}&priord=4"
+            url = TMX_RECENTLY_UPDATED_MAPS_API_URL + f"&count={tmx_limit}"
+            if after_map_id is not None:
+                url += f"&after={after_map_id}"
+            async with session.get(url, timeout=10.0) as resp:
                 if resp.status == 200:
                     return await resp.json()
                 else:
-                    raise Exception(f"Could not get map infos by last updated: {resp.status} code. limit: {tmx_limit}, page: {page}")
+                    raise Exception(f"Could not get map infos by last updated: {resp.status} code. limit: {tmx_limit}, after_map_id: {after_map_id}")
         except asyncio.TimeoutError as e:
             raise Exception(f"TMX timeout for searching maps recently updated")
 
-
+# still v1
 async def _add_maps_from_json(j: dict):
     if 'results' not in j:
         raise Exception(f"Response didn't contain .results")
@@ -224,7 +254,7 @@ async def _add_maps_from_json(j: dict):
         try:
             await update_tmx_map(map_j)
         except Exception as e:
-            logging.warn(f"Failed to save map: {map_j} -- exception: {e}")
+            logging.warn(f"Failed to save map: \n v1: {map_j} -- exception: {e}")
             raise e
         # logging.info(f"Saved tmx map: {track_id}")
     logging.info(f"Saved tmx maps: {track_ids}")
