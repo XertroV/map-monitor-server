@@ -229,7 +229,7 @@ async def update_maps_from_tmx(tids_or_uids: list[int | str]):
 # newest=2 (default), last updated=4
 
 # ! Not actually *all* of them.
-ALL_TMX2_FIELDS = "ExeVersion,TitlePack,Name,MapId,MapUid,OnlineMapId,Uploader.UserId,Uploader.Name,Medals.Author,Medals.Gold,Medals.Silver,Medals.Bronze,Authors,Type,MapType,Environment,Vehicle,VehicleName,Mood,MoodFull,Style,Routes,Difficulty,AwardCount,CommentCount,UploadedAt,UpdatedAt,ActivityAt,ReplayType,TrackValue,OnlineWR,OnlineWR,OnlineWR,OnlineWR,OnlineWR,ReplayCount,DownloadCount,CustomLength,Length,Tags,Images,HasThumbnail,HasImages,IsPublic,IsListed,GbxMapName,ServerSizeExceeded"
+ALL_TMX2_FIELDS = "ExeVersion,Exebuild,TitlePack,Name,MapId,MapUid,OnlineMapId,Uploader.UserId,Uploader.Name,Medals.Author,Medals.Gold,Medals.Silver,Medals.Bronze,Authors,Type,MapType,Environment,Vehicle,VehicleName,Mood,MoodFull,Style,Routes,Difficulty,AwardCount,CommentCount,UploadedAt,UpdatedAt,ActivityAt,ReplayType,TrackValue,OnlineWR,OnlineWR,OnlineWR,OnlineWR,OnlineWR,ReplayCount,DownloadCount,CustomLength,Length,Tags,Images,HasThumbnail,HasImages,IsPublic,IsListed,GbxMapName,ServerSizeExceeded"
 TMX_RECENTLY_UPDATED_MAPS_API_URL = f"https://trackmania.exchange/api/maps?order1=8&fields={ALL_TMX2_FIELDS}"
 
 # called from scraping update func: scrape_update_range

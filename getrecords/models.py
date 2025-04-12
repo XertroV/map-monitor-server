@@ -536,7 +536,7 @@ def tmx_v2_track_to_v1(j2: dict):
     j1['ModName'] = None
     j1['Lightmap'] = 0
     j1['ExeVersion'] = j2.get('ExeVersion', '?')
-    j1['ExeBuild'] = None or '?'
+    j1['ExeBuild'] = j2.get('Exebuild', '')
     j1['AuthorTime'] = j2.get('Medals', dict()).get('Author', -1)
     j1['ParserVersion'] = 1
     j1['UploadedAt'] = j2.get('UploadedAt', None)
