@@ -232,7 +232,7 @@ TMX_RECENTLY_UPDATED_MAPS_API_URL = f"https://trackmania.exchange/api/maps?order
 
 # called from scraping update func: scrape_update_range
 async def get_updated_maps(page: int, after_map_id: int | None = None):
-    tmx_limit = 100
+    tmx_limit = 50
     async with get_session() as session:
         try:
             # OLD: TMX_SEARCH_API_URL + f"&limit={tmx_limit}&page={page}&priord=4"
