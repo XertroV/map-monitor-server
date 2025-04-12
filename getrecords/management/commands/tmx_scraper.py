@@ -305,7 +305,7 @@ async def scrape_unbeaten_ats():
                 continue
             track = all_tmx_maps[mapAT.Track_id]
             tid = track['TrackID']
-            if track['TrackUID'] is None:
+            if track['TrackUID'] is None or track['AuthorTime'] < 10:
                 mapAT.Broken = True
                 logging.warn(f"Checked AT found Broken: {track['TrackID']}")
             elif tid in TMXIDS_UNBEATABLE_ATS:
