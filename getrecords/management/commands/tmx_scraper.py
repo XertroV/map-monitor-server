@@ -83,8 +83,8 @@ first_run = True
 async def run_tmx_scraper(state: TmxMapScrapeState, update_state: TmxMapScrapeState):
     global first_run
     # temp fix for maps being marked as removed from tmx
-    await fix_tmx_records()
-    await run_check_tmx_unbeaten_removed_updated()
+    # await fix_tmx_records()
+    # await asyncio.sleep(5.0)
 
     loop_seconds = 300
     while True:
@@ -717,7 +717,7 @@ async def get_maps_from_tmx(tids_or_uids: list[int | str]) -> list[dict]:
 
 
 async def fix_tmx_records():
-    # return
+    return
 
     # ---- 2025-04-12, most unbeaten got marked as removed from tmx; also some broken not broken.
     q = TmxMapAT.objects.filter(
