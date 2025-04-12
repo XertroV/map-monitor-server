@@ -680,8 +680,9 @@ async def try_fix_broken_maps():
             if 'TrackUID' in t and t['TrackUID'] is not None:
                 await update_tmx_map(t)
                 logging.warn(f"Updated map: {t['TrackID']}")
-                tid_to_mapAT[t['TrackID']].Broken = False
-                await tid_to_mapAT[t['TrackID']].asave()
+                if t['AuthorTime'] >= 10:
+                    tid_to_mapAT[t['TrackID']].Broken = False
+                    await tid_to_mapAT[t['TrackID']].asave()
             else:
                 logging.warn(f"Map {t['TrackID']} has missing UID: {t}")
 
