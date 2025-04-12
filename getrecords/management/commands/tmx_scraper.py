@@ -20,7 +20,7 @@ from getrecords.view_logic import CURRENT_COTD_KEY, RECENTLY_BEATEN_ATS_CV_NAME,
 
 
 # AT_CHECK_BATCH_SIZE = 360
-AT_CHECK_BATCH_SIZE = 200
+AT_CHECK_BATCH_SIZE = 260
 
 TMX_MAPPACKID_UNBEATEN_ATS_S2 = 3306
 if LOCAL_DEV_MODE:
@@ -83,7 +83,7 @@ first_run = True
 async def run_tmx_scraper(state: TmxMapScrapeState, update_state: TmxMapScrapeState):
     global first_run
     # temp fix for maps being marked as removed from tmx
-    # await fix_tmx_records()
+    await fix_tmx_records()
 
     loop_seconds = 300
     while True:
@@ -716,16 +716,16 @@ async def get_maps_from_tmx(tids_or_uids: list[int | str]) -> list[dict]:
 
 
 async def fix_tmx_records():
-    return
+    # return
 
     # ---- 2025-04-12, most unbeaten got marked as removed.
     q = TmxMapAT.objects.filter(
-        RemovedFromTmx=True
+        Broken=True
     ).select_related('Track')
     count = 0
     async for mapAT in q:
         # logging.info(f"Fixing Unbeaten AT: {mapAT.Track.TrackID}")
-        mapAT.RemovedFromTmx = False
+        mapAT.Broken = False
         mapAT.LastChecked = -1
         await mapAT.asave()
         logging.info(f"[RemovedFromTmx] Fixed mapAT: {mapAT.Track.TrackID}; set RemovedFromTmx=False")
