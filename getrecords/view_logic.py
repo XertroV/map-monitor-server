@@ -149,6 +149,8 @@ async def update_tmx_map(j: dict):
         return
     author_time = j.get('AuthorTime', -1)
     if author_time < 0: author_time = -1
+    if author_time > 4294967295: author_time = 4294967295
+    j['AuthorTime'] = author_time
     _map = await TmxMap.objects.filter(TrackID=tid).afirst()
 
     tmp_map = TmxMap(**j)

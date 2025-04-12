@@ -612,6 +612,7 @@ async def check_tmx_unbeaten_loop():
             continue
         try:
             await update_unbeatable_maps_list()
+            # await scrape_unbeaten_ats()
             await run_check_tmx_unbeaten_removed_updated()
         except Exception as e:
             logging.error(f"Exception checking tmx unbeaten/removed/updated: {e}")
