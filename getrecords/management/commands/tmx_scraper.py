@@ -599,7 +599,7 @@ async def cache_map_uids():
     q = TmxMap.objects.all().values('TrackID', 'TrackUID')
     track_uids = {}
     async for track in q:
-        track_uids[track.TrackID] = track.TrackUID
+        track_uids[track['TrackID']] = track['TrackUID']
     cv = await CachedValue.objects.filter(name=TRACK_UIDS_CV_NAME).afirst()
     if cv is None:
         cv = CachedValue(name=TRACK_UIDS_CV_NAME, value="")
