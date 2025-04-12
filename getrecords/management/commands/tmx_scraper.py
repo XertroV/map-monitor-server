@@ -81,6 +81,9 @@ first_run = True
 
 async def run_tmx_scraper(state: TmxMapScrapeState, update_state: TmxMapScrapeState):
     global first_run
+    # temp fix for maps being marked as removed from tmx
+    await fix_tmx_records()
+
     loop_seconds = 300
     while True:
         # testing DB issue (integer out of range)
@@ -99,9 +102,8 @@ async def run_tmx_scraper(state: TmxMapScrapeState, update_state: TmxMapScrapeSt
             await fix_at_beaten_first_nb()
             if first_run:
                 first_run = False
-                logging.info(f"First run: cache_recently_beaten_ats")
+                # logging.info(f"First run: cache_recently_beaten_ats")
                 # await update_unbeaten_ats_map_pack_s2()
-            # await fix_tmx_records()
             if False and LOCAL_DEV_MODE:
                 logging.info(f"Local dev: cache_recently_beaten_ats")
                 await cache_recently_beaten_ats()
@@ -711,7 +713,22 @@ async def get_maps_from_tmx(tids_or_uids: list[int | str]) -> list[dict]:
 
 
 async def fix_tmx_records():
-    pass
+    q = TmxMapAT.objects.filter(
+        RemovedFromTmx=True
+    ).select_related('Track')
+    count = 0
+    async for mapAT in q:
+        # logging.info(f"Fixing Unbeaten AT: {mapAT.Track.TrackID}")
+        mapAT.RemovedFromTmx = False
+        mapAT.LastChecked = -1
+        await mapAT.asave()
+        logging.info(f"[RemovedFromTmx] Fixed mapAT: {mapAT.Track.TrackID}; set RemovedFromTmx=False")
+        count += 1
+    logging.info(f"Fixed {count} mapAT records")
+    # pass
+
+    # ---- old
+
     # q = TmxMapAT.objects.filter(
     #     ATBeatenUsers__contains=" (TMX)"
     # )
