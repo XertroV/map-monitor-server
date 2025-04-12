@@ -41,6 +41,7 @@ urlpatterns = [
     path(f'api/tags/gettags', views.tmx_api_tags_gettags_refresh),
     path(f'api/tags/gettags/refresh', views.tmx_api_tags_gettags_refresh),
     path(f'tmx/unbeaten_ats', views.unbeaten_ats),
+    path(f'tmx/unbeaten_ats/leaderboard', views.unbeaten_ats_lb),
     path(f'tmx/unbeaten_ats/<int:trackid>', views.get_unbeaten_at_details, name='get_unbeaten_at_details'),
     path(f'tmx/recently_beaten_ats', views.recently_beaten_ats),
     path(f'tmx/track_ids_to_uid', views.track_ids_to_uid),

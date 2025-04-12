@@ -36,7 +36,7 @@ from mapmonitor.settings import CACHE_5_MIN, CACHE_8HRS_TTL, CACHE_COTD_TTL, CAC
 from .models import CachedValue, Challenge, CotdChallenge, CotdChallengeRanking, CotdQualiTimes, Ghost, MapTotalPlayers, TmxMap, TmxMapAT, Track, TrackStats, User, UserStats, UserTrackPlay
 from .nadeoapi import LOCAL_DEV_MODE, core_get_maps_by_uid, get_and_save_all_challenge_records, nadeo_get_nb_players_for_map, nadeo_get_surround_for_map
 import getrecords.nadeoapi as nadeoapi
-from .view_logic import CURRENT_COTD_KEY, KR5_MAP_CV_NAME_FMT, KR5_MAPS_CV_NAME, KR5_RESULTS_CV_NAME, NB_PLAYERS_CACHE_SECONDS, NB_PLAYERS_MAX_CACHE_SECONDS, RECENTLY_BEATEN_ATS_CV_NAME, TRACK_UIDS_CV_NAME, UNBEATEN_ATS_CV_NAME, get_tmx_map, get_unbeaten_ats_query, refresh_nb_players_inner, QUALI_TIMES_CACHE_SECONDS, tmx_map_still_public
+from .view_logic import CURRENT_COTD_KEY, KR5_MAP_CV_NAME_FMT, KR5_MAPS_CV_NAME, KR5_RESULTS_CV_NAME, NB_PLAYERS_CACHE_SECONDS, NB_PLAYERS_MAX_CACHE_SECONDS, RECENTLY_BEATEN_ATS_CV_NAME, TRACK_UIDS_CV_NAME, UNBEATEN_ATS_CV_NAME, UNBEATEN_ATS_LEADERBOARD_CV_NAME, get_tmx_map, get_unbeaten_ats_query, refresh_nb_players_inner, QUALI_TIMES_CACHE_SECONDS, tmx_map_still_public
 
 # if LOCAL_DEV_MODE:
 #     logging.basicConfig(level=logging.DEBUG)
@@ -826,6 +826,14 @@ def unbeaten_ats(request):
     if unbeaten_ats is not None:
         return JsonEncodedResponse(unbeaten_ats.value)
     return JsonResponse(dict(error='not yet initialized'))
+
+def unbeaten_ats_lb(request):
+    unbeaten_ats_lb_cv = CachedValue.objects.filter(name=UNBEATEN_ATS_LEADERBOARD_CV_NAME).first()
+    if unbeaten_ats_lb_cv is not None:
+        return JsonEncodedResponse(unbeaten_ats_lb_cv.value)
+    return JsonResponse(dict(error='not yet initialized'))
+
+
 
 
 def recently_beaten_ats(request):

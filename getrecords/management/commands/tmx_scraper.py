@@ -16,7 +16,7 @@ from getrecords.nadeoapi import LOCAL_DEV_MODE, TMX_MAPPACK_UNBEATEN_ATS_APIKEY,
 from getrecords.tmx_maps import tmx_date_to_ts, update_tmx_tags_cached
 from getrecords.unbeaten_ats import TMX_MAPPACKID_UNBEATABLE_ATS, TMXIDS_UNBEATABLE_ATS
 from getrecords.utils import chunk, model_to_dict
-from getrecords.view_logic import CURRENT_COTD_KEY, RECENTLY_BEATEN_ATS_CV_NAME, TRACK_UIDS_CV_NAME, UNBEATEN_ATS_CV_NAME, add_map_to_tmx_map_pack, get_recently_beaten_ats_query, get_tmx_map, get_tmx_map_pack_maps, get_unbeaten_ats_query, is_close_to_cotd, refresh_nb_players_inner, remove_map_from_tmx_map_pack, set_map_status_in_map_pack, update_tmx_map
+from getrecords.view_logic import CURRENT_COTD_KEY, RECENTLY_BEATEN_ATS_CV_NAME, TRACK_UIDS_CV_NAME, UNBEATEN_ATS_CV_NAME, UNBEATEN_ATS_LEADERBOARD_CV_NAME, add_map_to_tmx_map_pack, get_recently_beaten_ats_query, get_tmx_map, get_tmx_map_pack_maps, get_unbeaten_ats_query, is_close_to_cotd, refresh_nb_players_inner, remove_map_from_tmx_map_pack, set_map_status_in_map_pack, update_tmx_map
 
 
 # AT_CHECK_BATCH_SIZE = 360
@@ -106,14 +106,15 @@ async def run_tmx_scraper(state: TmxMapScrapeState, update_state: TmxMapScrapeSt
                 first_run = False
                 # logging.info(f"First run: cache_recently_beaten_ats")
                 # await update_unbeaten_ats_map_pack_s2()
-            if False and LOCAL_DEV_MODE:
-                logging.info(f"Local dev: cache_recently_beaten_ats")
-                await cache_recently_beaten_ats()
-                logging.info(f"Local dev: cache_map_uids")
-                await cache_map_uids()
-                logging.info(f"Local dev: scrape_unbeaten_ats")
-                await scrape_unbeaten_ats()
-                await cache_unbeaten_ats()
+            if LOCAL_DEV_MODE:
+                await update_beaten_ats_leaderboard()
+                # logging.info(f"Local dev: cache_recently_beaten_ats")
+                # await cache_recently_beaten_ats()
+                # logging.info(f"Local dev: cache_map_uids")
+                # await cache_map_uids()
+                # logging.info(f"Local dev: scrape_unbeaten_ats")
+                # await scrape_unbeaten_ats()
+                # await cache_unbeaten_ats()
             latest_map = await get_latest_map_id()
             if latest_map > state.LastScraped:
                 await scrape_range(state, latest_map)
@@ -121,6 +122,7 @@ async def run_tmx_scraper(state: TmxMapScrapeState, update_state: TmxMapScrapeSt
             await scrape_unbeaten_ats()
             await cache_unbeaten_ats()
             await cache_recently_beaten_ats()
+            await update_beaten_ats_leaderboard()
             await cache_map_uids()
             # await update_unbeaten_ats_map_pack_s2()
             await update_tmx_tags_cached()
@@ -594,7 +596,7 @@ async def cache_recently_beaten_ats():
 
 async def cache_map_uids():
     logging.info(f"track ids to uid cache start")
-    q = TmxMap.objects.all()
+    q = TmxMap.objects.all().values('TrackID', 'TrackUID')
     track_uids = {}
     async for track in q:
         track_uids[track.TrackID] = track.TrackUID
@@ -804,3 +806,30 @@ async def update_unbeatable_maps_list():
         logging.info(f"Updated unbeatable ATs (post len: {len(TMXIDS_UNBEATABLE_ATS)})")
     except Exception as e:
         logging.warn(f"Exception while updating unbeaten maps from map pack: {e}")
+
+
+async def update_beaten_ats_leaderboard():
+    logging.info(f"Updating unbeaten ATs leaderboard")
+    q = TmxMapAT.objects.filter(ATBeatenFirstNb = 1).values('ATBeatenUsers')
+    player_counts = dict()
+    async for mapAT in q:
+        if "," in mapAT['ATBeatenUsers']:
+            logging.info(f"Found multiple users in beaten AT with Nb=1: {mapAT['ATBeatenUsers']}")
+        else:
+            user = mapAT['ATBeatenUsers']
+            player_counts[user] = player_counts.get(user, 0) + 1
+    player_counts = sorted(player_counts.items(), key=lambda x: x[1], reverse=True)
+    nb_to_position = dict()
+    for i, (user, count) in enumerate(player_counts):
+        if count not in nb_to_position:
+            nb_to_position[count] = i + 1
+    nb_players = len(player_counts)
+    j = dict(count_to_pos=nb_to_position, players=player_counts)
+    logging.info(f"Found {nb_players} players with beaten ATs")
+    # update
+    cv = await CachedValue.objects.filter(name=UNBEATEN_ATS_LEADERBOARD_CV_NAME).afirst()
+    if cv is None:
+        cv = CachedValue(name=UNBEATEN_ATS_LEADERBOARD_CV_NAME, value="")
+    cv.value = json.dumps(j)
+    await cv.asave()
+    logging.info(f"Cached UnbeatenATs LB; len={len(cv.value)} / {nb_players}")

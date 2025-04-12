@@ -75,7 +75,7 @@ CURRENT_COTD_KEY = "COTD_current"
 KR5_RESULTS_CV_NAME = "KR5Results"
 KR5_MAPS_CV_NAME = "KR5Maps"
 KR5_MAP_CV_NAME_FMT = "KR5Map_{0}"
-
+UNBEATEN_ATS_LEADERBOARD_CV_NAME = "UnbeatenATsLeaderboard"
 
 async def get_tmx_map(tid: int, timeout=1.5):
     async with get_session() as session:
