@@ -493,6 +493,7 @@ def tmx_len_match(m: TmxMap, op: LengthOp, l_enum: int) -> bool:
 
 def tmx_vehicle_match(m: TmxMap, vehicles: list[int]) -> bool:
     if 0 in vehicles: return True
+    if len(vehicles) == 4: return True
     v = 1 if m.VehicleName == "CarSport" else \
         2 if m.VehicleName == "CarSnow" else \
         3 if m.VehicleName == "CarRally" else \

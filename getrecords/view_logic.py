@@ -147,6 +147,8 @@ async def update_tmx_map(j: dict):
     if (tid < 0):
         logging.warn(f"Update tmx map given bad data: {j}")
         return
+    author_time = j.get('AuthorTime', -1)
+    if author_time < 0: author_time = -1
     _map = await TmxMap.objects.filter(TrackID=tid).afirst()
 
     tmp_map = TmxMap(**j)
