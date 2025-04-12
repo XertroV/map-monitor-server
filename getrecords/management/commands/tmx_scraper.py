@@ -646,13 +646,46 @@ async def check_tmx_unbeaten_loop():
             await asyncio.sleep(60)
             continue
         try:
+            await try_fix_broken_maps()
             await update_unbeatable_maps_list()
             # await scrape_unbeaten_ats()
             await run_check_tmx_unbeaten_removed_updated()
+            await try_fix_broken_maps()
         except Exception as e:
             logging.error(f"Exception checking tmx unbeaten/removed/updated: {e}")
         await asyncio.sleep(sleep_len - (time.time() - start))
 
+
+async def try_fix_broken_maps():
+    start = time.time()
+    logging.info(f"try_fix_broken_maps start")
+    q = TmxMapAT.objects.filter(Broken=True, RemovedFromTmx=False, AuthorTimeBeaten=False).select_related('Track')
+    tids = []
+    tid_to_mapAT = dict()
+    async for mapAT in q:
+        tids.append(mapAT.Track.TrackID)
+        tid_to_mapAT[mapAT.Track.TrackID] = mapAT
+    if len(tids) == 0:
+        logging.info(f"No broken maps to fix")
+        return
+    logging.info(f"Found {len(tids)} broken maps to fix")
+
+    for _batch_ids in chunk(tids, 20):
+        batch_ids = list(_batch_ids)
+        logging.info(f"try_fix_broken_maps: ({len(batch_ids)}) -> {batch_ids}")
+        batch_resp = await get_maps_from_tmx(batch_ids)
+        resp_ids = [t['TrackID'] for t in batch_resp]
+        for t in batch_resp:
+            # save every map to get updated UIDs or things
+            if 'TrackUID' in t and t['TrackUID'] is not None:
+                await update_tmx_map(t)
+                logging.warn(f"Updated map: {t['TrackID']}")
+                tid_to_mapAT[t['TrackID']].Broken = False
+                await tid_to_mapAT[t['TrackID']].asave()
+            else:
+                logging.warn(f"Map {t['TrackID']} has missing UID: {t}")
+
+    logging.info(f"try_fix_broken_maps end; took {time.time() - start} seconds")
 
 
 async def run_check_tmx_unbeaten_removed_updated():
