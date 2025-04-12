@@ -822,9 +822,13 @@ async def update_beaten_ats_leaderboard():
     nb_to_position = dict()
     for i, (user, count) in enumerate(player_counts):
         if count not in nb_to_position:
-            nb_to_position[count] = i + 1
+            nb_to_position[count] = (i + 1, 1)
+        else:
+            (rank, nb_eq_players) = nb_to_position[count]
+            nb_to_position[count] = (rank, nb_eq_players + 1)
     nb_players = len(player_counts)
-    j = dict(count_to_pos=nb_to_position, players=player_counts)
+    j = dict(count_to_pos=nb_to_position, players=player_counts, nb_players=nb_players)
+    j['_info'] = "{ count_to_pos: {[score]: (rank, nb_eq_players)}, players: [(user, score)] }"
     logging.info(f"Found {nb_players} players with beaten ATs")
     # update
     cv = await CachedValue.objects.filter(name=UNBEATEN_ATS_LEADERBOARD_CV_NAME).afirst()

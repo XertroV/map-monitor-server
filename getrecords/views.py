@@ -41,6 +41,7 @@ from .view_logic import CURRENT_COTD_KEY, KR5_MAP_CV_NAME_FMT, KR5_MAPS_CV_NAME,
 # if LOCAL_DEV_MODE:
 #     logging.basicConfig(level=logging.DEBUG)
 
+
 def benchmark_request(f):
     def _inner(request: HttpRequest, *args, **kwargs):
         start = time.time()
