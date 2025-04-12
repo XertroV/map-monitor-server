@@ -5,6 +5,7 @@ from multiprocessing.managers import BaseManager
 import time
 import traceback
 from typing import Coroutine
+from random import shuffle
 
 from django.core.management.base import BaseCommand, CommandError
 
@@ -661,6 +662,8 @@ async def run_check_tmx_unbeaten_removed_updated():
     async for mapAT in q:
         tids.append(mapAT.Track.TrackID)
         tid_to_mapAT[mapAT.Track.TrackID] = mapAT
+
+    shuffle(tids)
 
     # errors above 20
     for _batch_ids in chunk(tids, 20):
