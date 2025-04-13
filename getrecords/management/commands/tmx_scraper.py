@@ -119,6 +119,7 @@ async def run_tmx_scraper(state: TmxMapScrapeState, update_state: TmxMapScrapeSt
             if latest_map > state.LastScraped:
                 await scrape_range(state, latest_map)
             await scrape_update_range(update_state)
+            await fix_unknown_author_logins()
             await scrape_unbeaten_ats()
             await cache_unbeaten_ats()
             await cache_recently_beaten_ats()
@@ -201,6 +202,27 @@ async def scrape_update_range(update_state: TmxMapScrapeState):
 #             raise e
 #         # logging.info(f"Saved tmx map: {track_id}")
 #     logging.info(f"Saved tmx maps: {track_ids}")
+
+async def fix_unknown_author_logins():
+    tracks = TmxMap.objects.filter(AuthorLogin="Unknown").values('TrackID')
+    tids = []
+    async for track in tracks:
+        tids.append(track['TrackID'])
+    total_tids = len(tids)
+    tids = tids[:200]
+    logging.info(f"fix_unknown_author_logins: {len(tids)} / {total_tids} tracks with Unknown author login")
+
+    for _batch in chunk(tids, 20):
+        batch = list(_batch)
+        logging.info(f"fix_unknown_author_logins: ({len(batch)}) -> {batch}")
+        batch_resp = await get_maps_from_tmx(batch)
+        for t in batch_resp:
+            # save every map to get updated UIDs or things
+            if 'TrackUID' in t and t['TrackUID'] is not None:
+                await update_tmx_map(t)
+            else:
+                logging.warn(f"Map {t['TrackID']} has missing UID: {t}")
+    logging.info(f"fix_unknown_author_logins: done for {len(tids)} / {total_tids} tracks with Unknown author login")
 
 
 TMX_SEARCH_API_URL = "https://trackmania.exchange/mapsearch2/search?api=on"
