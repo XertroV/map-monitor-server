@@ -527,7 +527,7 @@ def tmx_v2_track_to_v1(j2: dict):
     uploader = j2.get('Uploader', dict())
     j1['UserID'] = uploader.get('UserId', None)
     j1['Username'] = uploader.get('Name', None)
-    j1['AuthorLogin'] = "Unknown"
+    j1['AuthorLogin'] = j2.get('AuthorLogin', 'Unknown')
     j1['MapType'] = j2.get('MapType', None)
     j1['TitlePack'] = j2.get('TitlePack', None) or ''
     j1['TrackUID'] = j2.get('MapUid', None)

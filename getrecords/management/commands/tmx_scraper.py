@@ -168,6 +168,9 @@ async def scrape_update_range(update_state: TmxMapScrapeState):
             if oldest_update < down_to:
                 break
             try:
+                t1 = await TmxMap.objects.filter(TrackID=track['MapId']).afirst()
+                if t1 is not None:
+                    track['AuthorLogin'] = t1.AuthorLogin
                 await update_tmx_map(tmx_v2_track_to_v1(track))
             except Exception as e:
                 print(f"Failed to update map: {track['MapId']}: {e}")
@@ -178,7 +181,7 @@ async def scrape_update_range(update_state: TmxMapScrapeState):
         page += 1
         await asyncio.sleep(.8)
 
-    logging.info(f"Updating maps: {updated}")
+    logging.info(f"Updated maps: {updated}")
     update_state.LastScraped = max_time
     await update_state.asave()
 
