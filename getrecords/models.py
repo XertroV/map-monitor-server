@@ -583,3 +583,60 @@ def tmx_v2_track_to_v1(j2: dict):
     j1['ImageCount'] = 0
     j1['VideoCount'] = 0
     return j1
+
+
+"""
+model_to_dict_v2 only needs (from mxrandom):
+	"MapId",
+	"MapUid",
+	"OnlineMapId",
+	"Uploader.UserId",
+	"Uploader.Name",
+	"MapType",
+	"UploadedAt",
+	"UpdatedAt",
+	"Name",
+	"GbxMapName",
+	"TitlePack",
+	"Length",
+	"Medals.Author",
+	"AwardCount",
+	"ServerSizeExceeded",
+	"Tags",
+	"Exebuild"
+"""
+
+
+def model_to_dict_v2(track: TmxMap) -> dict:
+    ''' convert a TmxMap to api v2 format'''
+    j = dict(
+        MapId=track.TrackID,
+        MapUid=track.TrackUID,
+        OnlineMapId=None,
+        MapType=track.MapType,
+        Name=track.Name,
+        GbxMapName=track.GbxMapName,
+        UploadedAt=track.UploadedAt,
+        UpdatedAt=track.UpdatedAt,
+        ActivityAt=track.UploadedAt,
+        TitlePack=track.TitlePack,
+        Length=track.LengthSecs * 1000,
+        Uploader=dict(
+            UserId=track.UserID,
+            Name=track.Username
+        ),
+        Medals=dict(
+            Author=track.AuthorTime,
+        ),
+        AwardCount=track.AwardCount,
+        ServerSizeExceeded=False,
+        Exebuild=track.ExeBuild,
+        Tags=[
+            dict(
+                TagId=int(t),
+                Name="",
+                Color=""
+            ) for t in track.Tags.split(",")
+        ],
+    )
+    return j

@@ -818,7 +818,7 @@ async def fix_tmx_records():
 
 
 async def update_unbeatable_maps_list():
-    '''currently broken tmx2.0'''
+    '''currently broken tmx2.0 (map pack stuff)'''
     return
     global TMXIDS_UNBEATABLE_ATS
     try:

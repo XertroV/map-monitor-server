@@ -11,6 +11,7 @@ import os
 from django.core import serializers
 from django.db.models import Model
 
+
 @contextmanager
 def timeit_context(name):
     start_time = time.time()
@@ -64,6 +65,31 @@ def read_config_environ(file: str, keys: list[str]):
 
 
 
+def parse_i32_list(s: str) -> list[int]:
+    if not s or s == "":
+        return []
+    r = []
+    for x in s.strip().split(","):
+        try:
+            r.append(int(x))
+        except ValueError as e:
+            from getrecords.nadeoapi import LOCAL_DEV_MODE
+            if LOCAL_DEV_MODE:
+                log.warning(f"Failed to parse int from {x} in {s}")
+            pass
+    return r
+
+
+def parse_optional_int(s: str|None) -> int|None:
+    if s is None or s == "":
+        return None
+    try:
+        return int(s)
+    except ValueError as e:
+        from getrecords.nadeoapi import LOCAL_DEV_MODE
+        if LOCAL_DEV_MODE:
+            log.warning(f"Failed to parse int from {s}")
+        return None
 
 
 

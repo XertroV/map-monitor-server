@@ -35,6 +35,7 @@ urlpatterns = [
     path(f'tmx/<int:map_id>/prev', views.tmx_prev_map),
     path(f'tmx/<int:map_id>/count_prior', views.tmx_count_at_map),
     path(f'mapsearch2/search', views.tmx_compat_mapsearch2, name='tmx_compat_mapsearch2'),
+    path(f'api/maps', views.tmx_compat_random_api2, name='tmx_compat_random_api2'),
     path(f'api/maps/<int:trackid>', views.api_tmx_get_map, name='tmx_get_map'),
     path(f'maps/download/<int:mapid>', views.map_dl, name='map_dl'),
     path(f'api/maps/get_map_info/multi/<str:mapids>', views.tmx_maps_get_map_info_multi),

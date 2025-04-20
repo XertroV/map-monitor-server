@@ -30,10 +30,10 @@ from getrecords.openplanet import ARCHIVIST_PLUGIN_ID, MAP_MONITOR_PLUGIN_ID, To
 from getrecords.rmc_exclusions import EXCLUDE_FROM_RMC
 from getrecords.s3 import upload_ghost_to_s3
 from getrecords.tmx_maps import get_tmx_tags_cached, update_tmx_tag_lookup, update_tmx_tags_cached, tmx_tags_lookup
-from getrecords.utils import model_to_dict, run_async, sha_256_b_ts
+from getrecords.utils import model_to_dict, parse_i32_list, parse_optional_int, run_async, sha_256_b_ts
 from mapmonitor.settings import CACHE_5_MIN, CACHE_8HRS_TTL, CACHE_COTD_TTL, CACHE_ICONS_TTL
 
-from .models import CachedValue, Challenge, CotdChallenge, CotdChallengeRanking, CotdQualiTimes, Ghost, MapTotalPlayers, TmxMap, TmxMapAT, Track, TrackStats, User, UserStats, UserTrackPlay
+from .models import CachedValue, Challenge, CotdChallenge, CotdChallengeRanking, CotdQualiTimes, Ghost, MapTotalPlayers, TmxMap, TmxMapAT, Track, TrackStats, User, UserStats, UserTrackPlay, model_to_dict_v2
 from .nadeoapi import LOCAL_DEV_MODE, core_get_maps_by_uid, get_and_save_all_challenge_records, nadeo_get_nb_players_for_map, nadeo_get_surround_for_map
 import getrecords.nadeoapi as nadeoapi
 from .view_logic import CURRENT_COTD_KEY, KR5_MAP_CV_NAME_FMT, KR5_MAPS_CV_NAME, KR5_RESULTS_CV_NAME, NB_PLAYERS_CACHE_SECONDS, NB_PLAYERS_MAX_CACHE_SECONDS, RECENTLY_BEATEN_ATS_CV_NAME, TRACK_UIDS_CV_NAME, UNBEATEN_ATS_CV_NAME, UNBEATEN_ATS_LEADERBOARD_CV_NAME, get_tmx_map, get_unbeaten_ats_query, refresh_nb_players_inner, QUALI_TIMES_CACHE_SECONDS, tmx_map_still_public
@@ -492,6 +492,47 @@ def tmx_len_match(m: TmxMap, op: LengthOp, l_enum: int) -> bool:
     if op == LengthOp.GTE: return m.LengthEnum >= l_enum
     return True
 
+class TrackLenMatch:
+    # 1 for old, 2 for new
+    api_ver: int
+    # LengthOp
+    length_op: int
+    # enum
+    len_enum: int
+    # api v2
+    len_min: int|None
+    len_max: int|None
+
+    def __init__(self):
+        pass
+
+    @classmethod
+    def api1(cls, length_op: int, len_enum: int):
+        s = cls()
+        s.api_ver = 1
+        s.length_op = length_op
+        s.len_enum = len_enum
+        return s
+
+    @classmethod
+    def api2(cls, len_min: int|None, len_max: int|None):
+        s = cls()
+        s.api_ver = 2
+        s.len_min = len_min
+        s.len_max = len_max
+        return s
+
+    def match(self, m: TmxMap) -> bool:
+        if self.api_ver <= 1:
+            return tmx_len_match(m, self.length_op, self.len_enum)
+        if self.api_ver == 2:
+            if self.len_min is not None and m.LengthSecs < self.len_min:
+                return False
+            if self.len_max is not None and m.LengthSecs > self.len_max:
+                return False
+            return True
+        return True
+
 def tmx_vehicle_match(m: TmxMap, vehicles: list[int]) -> bool:
     if 0 in vehicles: return True
     if len(vehicles) == 4: return True
@@ -544,7 +585,6 @@ def tmx_compat_mapsearch2(request: HttpRequest):
 
 
 def mapsearch2_inner(request):
-    start_t = time.time()
     if request.method != "GET": return HttpResponseNotAllowed(['GET'])
     try:
         is_random = request.GET.get('random', '0') == '1'
@@ -560,12 +600,37 @@ def mapsearch2_inner(request):
         if len(etags) > 0:
             exclude_tags = list(map(lambda x: int(x or '0'), request.GET.get('etags', '').split(",")))
         length_op = int(request.GET.get('lengthop', '0') or '0')
-        length = int(request.GET.get('length', '0') or '0')
+        len_enum = int(request.GET.get('length', '0') or '0')
         vehicles: list[int] = [int(x.strip() or '0') for x in request.GET.get('vehicles', '0').split(',')]
         mtype = request.GET.get('mtype', '')
         author = request.GET.get('author', None)
+        track = rand_mapsearch(author, TrackLenMatch.api1(length_op, len_enum), vehicles, mtype, include_tags, require_all_tags, exclude_tags)
+        return JsonResponse({'results': [model_to_dict(track)], 'totalItemCount': 1})
     except Exception as e:
         return HttpResponseBadRequest(f"Exception processing query params: {e}")
+
+
+def tmx_compat_random_api2(request: HttpRequest):
+    ''' semi-compatible with tmx 2.0 api
+    '''
+    if request.method != "GET": return HttpResponseNotAllowed(['GET'])
+    if request.GET.get('random', '0') != '1' or request.GET.get('count', '1') != '1':
+        return HttpResponseBadRequest(f"Only random=1 and count=1 supported")
+    include_tags = parse_i32_list(request.GET.get('tag', ''))
+    exclude_tags = parse_i32_list(request.GET.get('etag', ''))
+    # if true, all tags must be present
+    tag_inclusive = request.GET.get('taginclusive', 'false') == 'true' and len(include_tags) <= 3
+    len_min = parse_optional_int(request.GET.get('lengthmin', None))
+    len_max = parse_optional_int(request.GET.get('lengthmax', None))
+    len_match = TrackLenMatch.api2(len_min, len_max)
+    vehicles = parse_i32_list(request.GET.get('vehicles', ''))
+    maptype = request.GET.get('maptype', '')
+    author = request.GET.get('author', None)
+    track = rand_mapsearch(author, len_match, vehicles, maptype, include_tags, tag_inclusive, exclude_tags)
+    return JsonResponse({'Results': [model_to_dict_v2(track)], 'More': False})
+
+def rand_mapsearch(author: Optional[str], len_match: TrackLenMatch, vehicles: list[int], map_type: str, include_tags: list[int], require_all_tags: bool, exclude_tags: list[int]):
+    start_t = time.time()
 
     state = get_scrape_state()
 
@@ -603,9 +668,9 @@ def mapsearch2_inner(request):
                 no_track.append(tid)
                 continue
             last_track = track
-            if not tmx_len_match(track, length_op, length) \
+            if not len_match.match(track) \
                 or not tmx_vehicle_match(track, vehicles) \
-                or not tmx_mtype_match(track, mtype) \
+                or not tmx_mtype_match(track, map_type) \
                 or not tmx_etags_match(track, exclude_tags) \
                 or not tmx_tags_match(track, include_tags, require_all_tags) \
                 or not tmx_map_downloadable(track) \
@@ -617,12 +682,12 @@ def mapsearch2_inner(request):
             dur = time.time() - start_t
             logging.info(f"mapsearch2 took {dur:.4f} seconds")
             logging.info(f"Found track: {track.TrackID} / not found: {len(no_track)} / no match: {len(no_match)} / count: {count}")
-            return JsonResponse({'results': [model_to_dict(track)], 'totalItemCount': 1})
+            return track
         # track.Tags
     dur = time.time() - start_t
-    logging.info(f"mapsearch2 took {dur:.4f} seconds")
+    logging.info(f"mapsearch2 took {dur:.4f} seconds / count: {count}")
     if last_track is not None:
-        return JsonResponse({'results': [model_to_dict(last_track)], 'totalItemCount': 1})
+        return last_track
     return HttpResponseNotFound("Searched 20k maps but did not find a map")
 
 
