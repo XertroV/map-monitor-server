@@ -38,6 +38,8 @@ urlpatterns = [
     path(f'api/maps', views.tmx_compat_random_api2, name='tmx_compat_random_api2'),
     path(f'api/maps/<int:trackid>', views.api_tmx_get_map, name='tmx_get_map'),
     path(f'maps/download/<int:mapid>', views.map_dl, name='map_dl'),
+    path(f'mapgbx/<int:mapid>', views.map_dl, name='map_dl'),
+    path(f'mapgbx/<int:mapid>/', views.map_dl, name='map_dl'),
     path(f'api/maps/get_map_info/multi/<str:mapids>', views.tmx_maps_get_map_info_multi),
     path(f'api/tags/gettags', views.tmx_api_tags_gettags_refresh),
     path(f'api/tags/gettags/refresh', views.tmx_api_tags_gettags_refresh),
