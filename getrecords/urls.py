@@ -41,6 +41,7 @@ urlpatterns = [
     path(f'mapgbx/<int:mapid>', views.map_dl, name='map_dl'),
     path(f'mapgbx/<int:mapid>/', views.map_dl, name='map_dl'),
     path(f'api/maps/get_map_info/multi/<str:mapids>', views.tmx_maps_get_map_info_multi),
+    path(f'api/meta/tags', views.tmx_api_tags_gettags_refresh),
     path(f'api/tags/gettags', views.tmx_api_tags_gettags_refresh),
     path(f'api/tags/gettags/refresh', views.tmx_api_tags_gettags_refresh),
     path(f'tmx/unbeaten_ats', views.unbeaten_ats),
