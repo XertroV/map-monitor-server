@@ -266,7 +266,7 @@ async def get_updated_maps(page: int, after_map_id: int | None = None):
             url = TMX_RECENTLY_UPDATED_MAPS_API_URL + f"&count={tmx_limit}"
             if after_map_id is not None:
                 url += f"&after={after_map_id}"
-            async with session.get(url, timeout=10.0) as resp:
+            async with session.get(url, timeout=20.0) as resp:
                 if resp.status == 200:
                     return await resp.json()
                 else:
