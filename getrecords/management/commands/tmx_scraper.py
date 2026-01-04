@@ -258,7 +258,7 @@ ALL_TMX2_FIELDS = "ExeVersion,Exebuild,TitlePack,Name,MapId,MapUid,OnlineMapId,U
 TMX_RECENTLY_UPDATED_MAPS_API_URL = f"https://trackmania.exchange/api/maps?order1=8&fields={ALL_TMX2_FIELDS}"
 
 # called from scraping update func: scrape_update_range
-async def get_updated_maps(page: int, after_map_id: int | None = None):
+async def get_updated_maps(page: int, after_map_id: int | None = None, d: int = 5):
     tmx_limit = 50
     async with get_session() as session:
         try:
@@ -266,12 +266,14 @@ async def get_updated_maps(page: int, after_map_id: int | None = None):
             url = TMX_RECENTLY_UPDATED_MAPS_API_URL + f"&count={tmx_limit}"
             if after_map_id is not None:
                 url += f"&after={after_map_id}"
-            async with session.get(url, timeout=20.0) as resp:
+            async with session.get(url, timeout=60.0) as resp:
                 if resp.status == 200:
                     return await resp.json()
                 else:
                     raise Exception(f"Could not get map infos by last updated: {resp.status} code. limit: {tmx_limit}, after_map_id: {after_map_id}")
         except asyncio.TimeoutError as e:
+            if d > 0:
+                return await get_updated_maps(page, after_map_id, d - 1)
             raise Exception(f"TMX timeout for searching maps recently updated")
 
 # still v1
