@@ -36,6 +36,7 @@ from mapmonitor.settings import CACHE_5_MIN, CACHE_8HRS_TTL, CACHE_COTD_TTL, CAC
 from .models import CachedValue, Challenge, CotdChallenge, CotdChallengeRanking, CotdQualiTimes, Ghost, MapTotalPlayers, TmxMap, TmxMapAT, Track, TrackStats, User, UserStats, UserTrackPlay, model_to_dict_v2
 from .nadeoapi import LOCAL_DEV_MODE, core_get_maps_by_uid, get_and_save_all_challenge_records, nadeo_get_nb_players_for_map, nadeo_get_surround_for_map
 import getrecords.nadeoapi as nadeoapi
+from .cotd_live_cache import get_live_rankings
 from .view_logic import CURRENT_COTD_KEY, KR5_MAP_CV_NAME_FMT, KR5_MAPS_CV_NAME, KR5_RESULTS_CV_NAME, NB_PLAYERS_CACHE_SECONDS, NB_PLAYERS_MAX_CACHE_SECONDS, RECENTLY_BEATEN_ATS_CV_NAME, TRACK_UIDS_CV_NAME, UNBEATEN_ATS_CV_NAME, UNBEATEN_ATS_LEADERBOARD_CV_NAME, get_tmx_map, get_unbeaten_ats_query, refresh_nb_players_inner, QUALI_TIMES_CACHE_SECONDS, tmx_map_still_public
 
 # if LOCAL_DEV_MODE:
@@ -182,30 +183,55 @@ def cached_api_challenges_id_records_maps_uid(request, challenge_id: int, map_ui
     just_cutoffs = 'cutoffs' in request.GET
     resp = []
     if just_cutoffs:
-        latest_record = get_challenge_records_v2_latest(challenge)
-        if latest_record is not None:
-            worst_time = CotdChallengeRanking.objects.filter(challenge=challenge, req_timestamp=latest_record.req_timestamp).order_by('rank').last()
-            resp = get_challenge_records_v2_by_ranks(challenge, list(range(64, COTD_UPPER_LIMIT, 64)) + [worst_time.rank])
+        live = get_live_rankings(challenge.challenge_id, challenge.uid)
+        if live and live.get('records'):
+            ranks_wanted = set(range(64, COTD_UPPER_LIMIT, 64))
+            worst_rank = live['records'][-1]['rank']
+            ranks_wanted.add(worst_rank)
+            resp = [r for r in live['records'] if r['rank'] in ranks_wanted]
+        else:
+            latest_record = get_challenge_records_v2_latest(challenge)
+            if latest_record is not None:
+                worst_time = CotdChallengeRanking.objects.filter(
+                    challenge=challenge, req_timestamp=latest_record.req_timestamp
+                ).order_by('rank').last()
+                resp = get_challenge_records_v2_by_ranks(
+                    challenge, list(range(64, COTD_UPPER_LIMIT, 64)) + [worst_time.rank]
+                )
     else:
         resp = get_challenge_records_v2(challenge, length, offset)
     return JsonResponse(resp, safe=False)
 
 
 def get_challenge_records_v2(challenge, length, offset):
+    live = get_live_rankings(challenge.challenge_id, challenge.uid)
+    if live and live.get('records') is not None:
+        return live['records'][offset:offset + length]
     latest_record = get_challenge_records_v2_latest(challenge)
     if latest_record is not None:
-        rankings = CotdChallengeRanking.objects.filter(challenge=challenge, req_timestamp=latest_record.req_timestamp)[offset:offset+length].all()
+        rankings = CotdChallengeRanking.objects.filter(
+            challenge=challenge, req_timestamp=latest_record.req_timestamp
+        )[offset:offset + length].all()
         return [challenge_ranking_to_json(r) for r in rankings]
     return []
 
 def get_challenge_records_v2_by_ranks(challenge, ranks: list[int]):
+    live = get_live_rankings(challenge.challenge_id, challenge.uid)
+    if live and live.get('records') is not None:
+        rank_set = set(ranks)
+        return [r for r in live['records'] if r['rank'] in rank_set]
     latest_record = get_challenge_records_v2_latest(challenge)
     if latest_record is not None:
-        rankings = CotdChallengeRanking.objects.filter(challenge=challenge, req_timestamp=latest_record.req_timestamp, rank__in=ranks).all()
+        rankings = CotdChallengeRanking.objects.filter(
+            challenge=challenge, req_timestamp=latest_record.req_timestamp, rank__in=ranks
+        ).all()
         return [challenge_ranking_to_json(r) for r in rankings]
     return []
 
 def get_challenge_records_v2_latest_req_ts(challenge) -> int | None:
+    live = get_live_rankings(challenge.challenge_id, challenge.uid)
+    if live and live.get('req_timestamp') is not None:
+        return live['req_timestamp']
     latest = get_challenge_records_v2_latest(challenge)
     if latest:
         return latest.req_timestamp
@@ -239,18 +265,30 @@ def cached_api_challenges_id_records_maps_uid_players(request: HttpRequest, chal
     )
     if (challenge is None):
         return JsonResponse(resp)
-        # return HttpResponseNotFound(f"Challenge / UID combination not found: {challenge_id}, {map_uid}")
 
     player_ids = []
     if request.method == "GET":
         player_ids = request.GET.get('players[]', '').split(',')
     elif request.method == "POST" and len(request.body) > 0:
         player_ids = json.loads(request.body).get('players', [])
+    player_ids = [p for p in player_ids if p]
+
+    live = get_live_rankings(challenge_id, map_uid)
+    if live and live.get('records') is not None:
+        player_set = set(player_ids)
+        resp['records'] = [r for r in live['records'] if r['player'] in player_set]
+        resp['cardinal'] = live.get('cardinal') or len(live['records'])
+        return JsonResponse(resp)
+
     req_ts = get_challenge_records_v2_latest_req_ts(challenge)
     if req_ts is not None:
-        records = CotdChallengeRanking.objects.filter(challenge=challenge, req_timestamp=req_ts, player__in=player_ids).all()
+        records = CotdChallengeRanking.objects.filter(
+            challenge=challenge, req_timestamp=req_ts, player__in=player_ids
+        ).all()
         resp['records'] = [challenge_ranking_to_json(r) for r in records]
-        resp['cardinal'] = CotdChallengeRanking.objects.filter(challenge=challenge, req_timestamp=req_ts).count()
+        resp['cardinal'] = CotdChallengeRanking.objects.filter(
+            challenge=challenge, req_timestamp=req_ts
+        ).count()
     return JsonResponse(resp)
 
 

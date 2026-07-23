@@ -247,18 +247,40 @@ async def get_challenge_records(_id: int, map_uid: str, length: int = 10, offset
             return None
 
 
+async def fetch_all_challenge_records(challenge: CotdChallenge):
+    """Scrape full challenge LB from Nadeo. Returns (req_timestamp, cardinal, model rows, json records)."""
+    cid = challenge.challenge_id
+    uid = challenge.uid
+    c_players = await get_challenge_players(cid, uid)
+    if not c_players or 'cardinal' not in c_players:
+        raise Exception(f"get_challenge_players failed for challenge {cid} map {uid}: {c_players}")
+    last_nb_players = c_players['cardinal']
+    offsets = list(range(0, last_nb_players + 100, 100))
+    requests = [get_challenge_records(cid, uid, 100, o) for o in offsets]
+    responses = await asyncio.gather(*requests, return_exceptions=True)
+    loop_mid = int(time.time())
+    new_records = []
+    for resp, offset in zip(responses, offsets):
+        if isinstance(resp, Exception) or resp is None:
+            logging.warn(f"challenge records page failed challenge={cid} offset={offset}: {resp}")
+            continue
+        new_records.extend(gen_cotd_quali_challenge_block(challenge, resp, offset, loop_mid))
+    json_records = [
+        {"score": r.score, "time": r.score, "rank": r.rank, "player": r.player}
+        for r in new_records
+    ]
+    return loop_mid, last_nb_players, new_records, json_records
+
+
+async def persist_challenge_records(new_records: list):
+    if not new_records:
+        return []
+    return await CotdChallengeRanking.objects.abulk_create(new_records)
+
+
 async def get_and_save_all_challenge_records(challenge: CotdChallenge):
-        cid = challenge.challenge_id
-        uid = challenge.uid
-        c_players = await get_challenge_players(cid, uid)
-        last_nb_players = c_players['cardinal']
-        offsets = list(range(0, last_nb_players+100, 100))
-        requests = [get_challenge_records(cid, uid, 100, o) for o in offsets]
-        responses = await asyncio.gather(*requests, return_exceptions=True)
-        # create (but dont save) records
-        loop_mid = time.time()
-        new_records = [rec for resp, offset in zip(responses, offsets) for rec in gen_cotd_quali_challenge_block(challenge, resp, offset, int(loop_mid))]
-        return await CotdChallengeRanking.objects.abulk_create(new_records)
+    _req_ts, _cardinal, new_records, _json = await fetch_all_challenge_records(challenge)
+    return await persist_challenge_records(new_records)
 
 
 def gen_cotd_quali_challenge_block(challenge, resp, offset, loop_mid) -> list[CotdChallengeRanking]:
